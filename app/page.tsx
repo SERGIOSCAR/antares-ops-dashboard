@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import PortalLogin from "@/components/portal-login";
 
 export default function Home() {
-  redirect("/login");
+  return <PortalLogin />;
 }
