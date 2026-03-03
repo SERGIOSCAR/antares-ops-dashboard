@@ -1,49 +1,52 @@
 export default function DashboardPage() {
   const apps = [
-    { title: "ShiftReporter", desc: "Shift reports & email output", href: "/shiftreporter" },
-    { title: "LineUp", desc: "Vessel lineup board", href: "/lineup" },
-    { title: "Hydro Outlook", desc: "Forecast images & notes", href: "/hydro" },
-    { title: "Crew Change", desc: "Templates & checklist", href: "/crew-change" },
-    { title: "Port Costs", desc: "Quick estimate tool", href: "/port-costs" },
-    { title: "Docs", desc: "Internal references", href: "/docs" },
+    { name: "ShiftReporter", href: "/shiftreporter" },
+    { name: "LineUp", href: "/lineup" },
+    { name: "Hydro Outlook", href: "/hydro" },
+    { name: "Crew Change", href: "/crew-change" },
   ];
 
   return (
-    <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px", fontFamily: "system-ui" }}>
-      <header style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 26 }}>Antares Ops Dashboard</h1>
-        <p style={{ margin: "6px 0 0", color: "#555" }}>
-          Internal apps and reports — authorized personnel only.
-        </p>
-      </header>
+    <main
+      style={{
+        maxWidth: 960,
+        margin: "40px auto",
+        padding: "0 20px",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      <h1 style={{ marginBottom: 8 }}>Antares Ops Dashboard</h1>
+      <p style={{ marginTop: 0, marginBottom: 20, color: "#555" }}>
+        Internal portal modules
+      </p>
 
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: 14,
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 12,
         }}
       >
-        {apps.map((a) => (
+        {apps.map((app) => (
           <a
-            key={a.title}
-            href={a.href}
+            key={app.name}
+            href={app.href}
+            target={app.href.startsWith("http") ? "_blank" : undefined}
+            rel={app.href.startsWith("http") ? "noopener noreferrer" : undefined}
             style={{
               display: "block",
-              padding: 16,
-              border: "1px solid #e5e5e5",
-              borderRadius: 14,
+              padding: 14,
+              border: "1px solid #ddd",
+              borderRadius: 10,
               textDecoration: "none",
               color: "inherit",
-              background: "white",
+              background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 6 }}>{a.title}</div>
-            <div style={{ color: "#666", fontSize: 14, lineHeight: 1.35 }}>{a.desc}</div>
+            <strong>{app.name}</strong>
           </a>
         ))}
       </section>
     </main>
   );
-}
 }

@@ -1,0 +1,150 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+
+const PRE_OP_REASON_PREFIX = "[PRE_OPERATION_SOF] ";
+
+const isMissingColumnError = (error: any) => {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "").toLowerCase();
+  return code === "42703" || code === "PGRST204" || message.includes("column");
+};
+
+const isDateTime = (value: string) =>
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(String(value || "").trim());
+
+async function authorize(req: NextRequest) {
+  const admin = supabaseAdmin();
+  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+  if (!token) return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+
+  const {
+    data: { user },
+    error: userError,
+  } = await admin.auth.getUser(token);
+  if (userError || !user) {
+    return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
+  if (!profile || String(profile.role) !== "admin") {
+    return {
+      admin,
+      error: NextResponse.json(
+        { error: "Only Admin can edit pre-operation SOF events" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { admin, error: null as NextResponse | null };
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; eventId: string }> }
+) {
+  try {
+    const { id: vesselId, eventId } = await params;
+    const { admin, error } = await authorize(req);
+    if (error) return error;
+
+    const body = await req.json();
+    const from = String(body?.from || "").trim();
+    const to = String(body?.to || "").trim();
+    const reason = String(body?.reason || "").trim();
+
+    if (!reason) {
+      return NextResponse.json({ error: "Reason is required" }, { status: 400 });
+    }
+    if (from && !isDateTime(from)) {
+      return NextResponse.json({ error: "FROM must be YYYY-MM-DDTHH:MM[:SS]" }, { status: 400 });
+    }
+    if (to && !isDateTime(to)) {
+      return NextResponse.json({ error: "TO must be YYYY-MM-DDTHH:MM[:SS]" }, { status: 400 });
+    }
+
+    let updateError: any = null;
+    const attempts = [
+      {
+        reason: `${PRE_OP_REASON_PREFIX}${reason}`,
+      },
+      {
+        notes: JSON.stringify({
+          source: "PRE_OPERATION_SOF",
+          from: from || null,
+          to: to || null,
+          reason,
+        }),
+      },
+      {
+        from_time: from || null,
+        to_time: to || null,
+        reason: `${PRE_OP_REASON_PREFIX}${reason}`,
+      },
+      {
+        event_type: "PRE_OPERATION_SOF",
+        notes: JSON.stringify({
+          source: "PRE_OPERATION_SOF",
+          from: from || null,
+          to: to || null,
+          reason,
+        }),
+      },
+      {
+        event_type: "PRE_OPERATION_SOF",
+        from_time: from || null,
+        to_time: to || null,
+        reason,
+      },
+      {
+        from_time: from || null,
+        to_time: to || null,
+      },
+    ];
+
+    for (const payload of attempts) {
+      const res = await admin
+        .from("vessel_events")
+        .update(payload as any)
+        .eq("id", eventId)
+        .eq("vessel_id", vesselId);
+      if (!res.error) {
+        updateError = null;
+        break;
+      }
+      if (!isMissingColumnError(res.error)) {
+        throw res.error;
+      }
+      updateError = res.error;
+    }
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || "Failed to update pre-operation event" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; eventId: string }> }
+) {
+  try {
+    const { id: vesselId, eventId } = await params;
+    const { admin, error } = await authorize(req);
+    if (error) return error;
+
+    const { error: deleteError } = await admin
+      .from("vessel_events")
+      .delete()
+      .eq("id", eventId)
+      .eq("vessel_id", vesselId);
+
+    if (deleteError) throw deleteError;
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || "Failed to delete pre-operation event" }, { status: 500 });
+  }
+}
