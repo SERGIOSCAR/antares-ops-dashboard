@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const isDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(String(value || "").trim());
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function authorizeAdmin(req: NextRequest) {
   const admin = supabaseAdmin();
@@ -28,6 +29,28 @@ async function authorizeAdmin(req: NextRequest) {
   return { admin, error: null as NextResponse | null };
 }
 
+async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam: string) {
+  if (UUID_REGEX.test(idParam)) {
+    const { data: byUuid, error: byUuidError } = await admin
+      .from("vessels")
+      .select("id")
+      .eq("id", idParam)
+      .maybeSingle();
+    if (byUuidError) throw byUuidError;
+    if (byUuid) return String(byUuid.id);
+  }
+
+  const { data: byShortId, error: byShortIdError } = await admin
+    .from("vessels")
+    .select("id")
+    .eq("short_id", idParam)
+    .maybeSingle();
+  if (byShortIdError) throw byShortIdError;
+  if (byShortId) return String(byShortId.id);
+
+  return null;
+}
+
 async function ensureEventBelongsToVessel(admin: ReturnType<typeof supabaseAdmin>, vesselId: string, eventId: string) {
   const { data: delay } = await admin.from("shift_delays").select("id, shift_id").eq("id", eventId).single();
   if (!delay) return false;
@@ -46,9 +69,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
   try {
-    const { id: vesselId, eventId } = await params;
+    const { id: idParam, eventId } = await params;
     const { admin, error } = await authorizeAdmin(req);
     if (error) return error;
+
+    const vesselId = await resolveVesselId(admin, idParam);
+    if (!vesselId) return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
 
     const belongs = await ensureEventBelongsToVessel(admin, vesselId, eventId);
     if (!belongs) return NextResponse.json({ error: "Event not found for this vessel" }, { status: 404 });
@@ -90,9 +116,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
   try {
-    const { id: vesselId, eventId } = await params;
+    const { id: idParam, eventId } = await params;
     const { admin, error } = await authorizeAdmin(req);
     if (error) return error;
+
+    const vesselId = await resolveVesselId(admin, idParam);
+    if (!vesselId) return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
 
     const belongs = await ensureEventBelongsToVessel(admin, vesselId, eventId);
     if (!belongs) return NextResponse.json({ error: "Event not found for this vessel" }, { status: 404 });

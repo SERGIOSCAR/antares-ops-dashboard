@@ -34,9 +34,33 @@ const DRAFT_META_GRADE = {
   aft: "__META_DRAFT_AFT__",
 } as const;
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam: string) {
+  if (UUID_REGEX.test(idParam)) {
+    const { data: byUuid, error: byUuidError } = await admin
+      .from("vessels")
+      .select("id")
+      .eq("id", idParam)
+      .maybeSingle();
+    if (byUuidError) throw byUuidError;
+    if (byUuid) return String(byUuid.id);
+  }
+
+  const { data: byShortId, error: byShortIdError } = await admin
+    .from("vessels")
+    .select("id")
+    .eq("short_id", idParam)
+    .maybeSingle();
+  if (byShortIdError) throw byShortIdError;
+  if (byShortId) return String(byShortId.id);
+
+  return null;
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
+    const { id: idParam } = await params;
 
     const admin = supabaseAdmin();
 
@@ -59,15 +83,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
     const { plan, drafts } = parsed.data;
+    const vesselId = await resolveVesselId(admin, idParam);
+    if (!vesselId) {
+      return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
+    }
 
     // Delete existing stow plan
-    const { error: deleteError } = await admin.from("stow_plans").delete().eq("vessel_id", id);
+    const { error: deleteError } = await admin.from("stow_plans").delete().eq("vessel_id", vesselId);
     if (deleteError) throw deleteError;
 
     // Insert new stow plan
     if (plan && plan.length > 0) {
       const baseRows = plan.map((item) => ({
-        vessel_id: id,
+        vessel_id: vesselId,
         hold: item.hold,
         grade: item.grade,
         total_mt: item.totalMT,
@@ -113,9 +141,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // store fallback metadata rows using base columns only.
       if (drafts) {
         const draftMetaRows = [
-          { vessel_id: id, hold: 0, grade: DRAFT_META_GRADE.fwd, total_mt: drafts.fwd },
-          { vessel_id: id, hold: 0, grade: DRAFT_META_GRADE.mean, total_mt: drafts.mean },
-          { vessel_id: id, hold: 0, grade: DRAFT_META_GRADE.aft, total_mt: drafts.aft },
+          { vessel_id: vesselId, hold: 0, grade: DRAFT_META_GRADE.fwd, total_mt: drafts.fwd },
+          { vessel_id: vesselId, hold: 0, grade: DRAFT_META_GRADE.mean, total_mt: drafts.mean },
+          { vessel_id: vesselId, hold: 0, grade: DRAFT_META_GRADE.aft, total_mt: drafts.aft },
         ];
         const metaRes = await admin.from("stow_plans").insert(draftMetaRows);
         if (metaRes.error) {

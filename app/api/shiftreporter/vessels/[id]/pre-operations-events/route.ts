@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const PRE_OP_REASON_PREFIX = "[PRE_OPERATION_SOF] ";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const isMissingColumnError = (error: any) => {
   const code = String(error?.code || "");
@@ -34,9 +35,31 @@ function normalizeFromTo(baseDate: string, fromHHMM: string, toHHMM?: string) {
   return { from, to };
 }
 
+async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam: string) {
+  if (UUID_REGEX.test(idParam)) {
+    const { data: byUuid, error: byUuidError } = await admin
+      .from("vessels")
+      .select("id")
+      .eq("id", idParam)
+      .maybeSingle();
+    if (byUuidError) throw byUuidError;
+    if (byUuid) return String(byUuid.id);
+  }
+
+  const { data: byShortId, error: byShortIdError } = await admin
+    .from("vessels")
+    .select("id")
+    .eq("short_id", idParam)
+    .maybeSingle();
+  if (byShortIdError) throw byShortIdError;
+  if (byShortId) return String(byShortId.id);
+
+  return null;
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id: vesselId } = await params;
+    const { id: idParam } = await params;
     const admin = supabaseAdmin();
 
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
@@ -56,6 +79,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!profile || !["admin", "agent"].includes(String(profile.role))) {
       return NextResponse.json({ error: "Only Agent/Admin can submit pre-operation SOF events" }, { status: 403 });
+    }
+
+    const vesselId = await resolveVesselId(admin, idParam);
+    if (!vesselId) {
+      return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
     }
 
     const body = await req.json();
