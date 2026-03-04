@@ -39,8 +39,11 @@ export default function VesselSetup({ existingVessels }: { existingVessels: any[
 
       // Get auth token
       const supa = supabaseBrowser();
-      const { data: sessionData } = await supa.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const { data: { session } } = await supa.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("Unauthorized: no active session token.");
+      }
 
       const body = {
         name,
@@ -56,7 +59,10 @@ export default function VesselSetup({ existingVessels }: { existingVessels: any[
 
       const res = await fetch("/api/shiftreporter/vessels", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(body),
       });
 

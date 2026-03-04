@@ -8,12 +8,15 @@ export async function POST(req: NextRequest) {
     const admin = supabaseAdmin();
 
     // Verify user is authenticated
+    console.log("Auth header:", req.headers.get("Authorization"));
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    console.log("Token:", token);
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: { user }, error: userError } = await admin.auth.getUser(token);
+    console.log("User:", user?.id);
     if (userError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
