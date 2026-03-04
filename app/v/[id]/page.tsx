@@ -7,12 +7,20 @@ import ShiftForm from "@/components/shift-form";
 import StowPlanEditor from "@/components/stow-plan-editor";
 import RunningSofEditor from "@/components/running-sof-editor";
 import { classifySofDay, sofDayLabel } from "@/lib/sof";
+import { format } from "date-fns";
 
 const DRAFT_META_GRADE = {
   fwd: "__META_DRAFT_FWD__",
   mean: "__META_DRAFT_MEAN__",
   aft: "__META_DRAFT_AFT__",
 } as const;
+
+function formatSOFTime(ts: string | Date | null | undefined) {
+  if (!ts) return "-";
+  const date = new Date(ts);
+  if (Number.isNaN(date.getTime())) return "-";
+  return format(date, "dd-MMM-yy HH:mm");
+}
 
 export default async function VesselPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -136,7 +144,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
   const timelineShiftIds = (timelineShifts || []).map((s: any) => s.id as string);
   const shiftOptions = (timelineShifts || []).map((s: any) => ({
     id: String(s.id),
-    label: `${String(s.shift_start || "").slice(0, 16)} -> ${String(s.shift_end || "").slice(0, 16)}`,
+    label: `${formatSOFTime(s.shift_start)} -> ${formatSOFTime(s.shift_end)}`,
   }));
 
   let runningShiftEvents: Array<{ id: string; shiftId: string; from: string; to: string; reason: string; source: string }> = [];
@@ -245,8 +253,8 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
               <tbody>
                 {runningSofEvents.map((event, idx) => (
                   <tr key={`${event.from}-${idx}`}>
-                    <td className="border border-gray-300 p-2">{event.from || "-"}</td>
-                    <td className="border border-gray-300 p-2">{event.to || "-"}</td>
+                    <td className="border border-gray-300 p-2">{formatSOFTime(event.from)}</td>
+                    <td className="border border-gray-300 p-2">{formatSOFTime(event.to)}</td>
                     <td className="border border-gray-300 p-2">{sofDayLabel(event.dayType)}</td>
                     <td className="border border-gray-300 p-2">{event.source}</td>
                     <td className="border border-gray-300 p-2">{event.reason}</td>
