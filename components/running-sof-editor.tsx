@@ -54,6 +54,8 @@ export default function RunningSofEditor({
     reason: "",
   });
   const [adding, setAdding] = useState(false);
+  const fieldClass =
+    "w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
   const withToken = async () => {
     const supabase = supabaseBrowser();
@@ -155,8 +157,8 @@ export default function RunningSofEditor({
   };
 
   return (
-    <div className="rounded-2xl border bg-white shadow-sm p-4 mt-3">
-      <h3 className="text-base font-semibold mb-2">Running SOF Editor</h3>
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-4 mt-3">
+      <h3 className="text-lg font-semibold text-gray-800 mb-3">Running SOF Editor</h3>
       <p className="text-xs text-zinc-600 mb-3">Admin can add, edit, or delete any running SOF event.</p>
 
       <div className="grid grid-cols-12 gap-2 items-end border rounded p-3 mb-3">
@@ -165,7 +167,7 @@ export default function RunningSofEditor({
           <select
             value={newRow.shiftId}
             onChange={(e) => setNewRow((prev) => ({ ...prev, shiftId: e.target.value }))}
-            className="w-full border rounded p-2"
+            className={fieldClass}
           >
             {shiftOptions.map((opt) => (
               <option key={opt.id} value={opt.id}>
@@ -180,7 +182,7 @@ export default function RunningSofEditor({
             type="datetime-local"
             value={newRow.from}
             onChange={(e) => setNewRow((prev) => ({ ...prev, from: e.target.value }))}
-            className="w-full border rounded p-2"
+            className={fieldClass}
           />
         </div>
         <div className="col-span-3">
@@ -189,7 +191,7 @@ export default function RunningSofEditor({
             type="datetime-local"
             value={newRow.to}
             onChange={(e) => setNewRow((prev) => ({ ...prev, to: e.target.value }))}
-            className="w-full border rounded p-2"
+            className={fieldClass}
           />
         </div>
         <div className="col-span-2">
@@ -198,7 +200,7 @@ export default function RunningSofEditor({
             type="text"
             value={newRow.reason}
             onChange={(e) => setNewRow((prev) => ({ ...prev, reason: e.target.value }))}
-            className="w-full border rounded p-2"
+            className={fieldClass}
           />
         </div>
         <button
@@ -225,7 +227,7 @@ export default function RunningSofEditor({
                     prev.map((r) => (r.id === row.id ? { ...r, from: e.target.value } : r))
                   )
                 }
-                className="col-span-3 border rounded p-2"
+                className={`col-span-3 ${fieldClass}`}
               />
               <input
                 type="datetime-local"
@@ -235,7 +237,7 @@ export default function RunningSofEditor({
                     prev.map((r) => (r.id === row.id ? { ...r, to: e.target.value } : r))
                   )
                 }
-                className="col-span-3 border rounded p-2"
+                className={`col-span-3 ${fieldClass}`}
               />
               <input
                 type="text"
@@ -245,7 +247,7 @@ export default function RunningSofEditor({
                     prev.map((r) => (r.id === row.id ? { ...r, reason: e.target.value } : r))
                   )
                 }
-                className="col-span-4 border rounded p-2"
+                className={`col-span-4 ${fieldClass}`}
               />
               <button
                 type="button"

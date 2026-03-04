@@ -74,6 +74,8 @@ export default function StowPlanEditor({
     mean: parseDraft(draftInputs.mean),
     aft: parseDraft(draftInputs.aft),
   };
+  const fieldClass =
+    "w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
   const router = useRouter();
 
@@ -164,10 +166,10 @@ export default function StowPlanEditor({
   const grandTotal = Object.values(totals).reduce((sum, val) => sum + val, 0);
 
   return (
-    <div className="rounded-2xl border bg-white shadow-sm p-6">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold">Stow Plan</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Stow Plan</h2>
           <p className="text-sm text-zinc-600">
             Total: {grandTotal.toFixed(3)} MT
             {Object.entries(totals).map(([grade, mt]) => (
@@ -197,7 +199,7 @@ export default function StowPlanEditor({
               value={draftInputs.fwd}
               onChange={(e) => handleDraftChange("fwd", e.target.value)}
               onBlur={() => handleDraftBlur("fwd")}
-              className="h-9 w-full rounded border px-2 text-sm"
+              className={fieldClass}
             />
           ) : (
             <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
@@ -215,7 +217,7 @@ export default function StowPlanEditor({
               value={draftInputs.mean}
               onChange={(e) => handleDraftChange("mean", e.target.value)}
               onBlur={() => handleDraftBlur("mean")}
-              className="h-9 w-full rounded border px-2 text-sm"
+              className={fieldClass}
             />
           ) : (
             <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
@@ -233,7 +235,7 @@ export default function StowPlanEditor({
               value={draftInputs.aft}
               onChange={(e) => handleDraftChange("aft", e.target.value)}
               onBlur={() => handleDraftBlur("aft")}
-              className="h-9 w-full rounded border px-2 text-sm"
+              className={fieldClass}
             />
           ) : (
             <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
@@ -266,7 +268,7 @@ export default function StowPlanEditor({
                         <select
                           value={holdData.grade}
                           onChange={(e) => updateHold(hold, { grade: e.target.value })}
-                          className="w-full h-8 rounded border px-2 text-sm"
+                          className={fieldClass}
                         >
                           {grades.map(g => (
                             <option key={g} value={g}>{g}</option>
@@ -279,14 +281,14 @@ export default function StowPlanEditor({
                           step="0.001"
                           value={holdData.total_mt}
                           onChange={(e) => updateHold(hold, { total_mt: Number(e.target.value) })}
-                          className="w-32 h-8 rounded border px-2 text-sm"
+                          className={fieldClass}
                         />
                       </td>
                       <td className="p-2">
                         <select
                           value={holdData.condition}
                           onChange={(e) => updateHold(hold, { condition: e.target.value })}
-                          className="w-full h-8 rounded border px-2 text-sm"
+                          className={fieldClass}
                         >
                           <option value="">-</option>
                           {CONDITION_OPTIONS.filter(Boolean).map((condition) => (

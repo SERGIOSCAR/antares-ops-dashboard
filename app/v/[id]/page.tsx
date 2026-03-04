@@ -6,7 +6,6 @@ import CommenceButton from "@/components/commence-button";
 import ShiftForm from "@/components/shift-form";
 import StowPlanEditor from "@/components/stow-plan-editor";
 import RunningSofEditor from "@/components/running-sof-editor";
-import { classifySofDay, sofDayLabel } from "@/lib/sof";
 import { formatDateTime } from "@/lib/format-date";
 
 const DRAFT_META_GRADE = {
@@ -140,7 +139,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     label: `${formatDateTime(s.shift_start)} -> ${formatDateTime(s.shift_end)}`,
   }));
 
-  let runningShiftEvents: Array<{ id: string; shiftId: string; from: string; to: string; reason: string; source: string }> = [];
+  let runningShiftEvents: Array<{ id: string; shiftId: string; from: string; to: string; reason: string }> = [];
   if (timelineShiftIds.length > 0) {
     const { data: delayRows } = await admin
       .from("shift_delays")
@@ -154,132 +153,124 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
       from: String(row.from_time || ""),
       to: String(row.to_time || ""),
       reason: String(row.reason || ""),
-      source: "SHIFT",
     }));
   }
-  const runningSofEvents = [...runningShiftEvents]
-    .sort((a, b) => String(a.from).localeCompare(String(b.from)))
-    .map((e) => ({
-      ...e,
-      dayType: classifySofDay(e.from),
-    }));
+  const runningSofEvents = [...runningShiftEvents].sort((a, b) => String(a.from).localeCompare(String(b.from)));
 
   const commenced = !!vessel.commenced_at;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border bg-white shadow-sm p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">{vessel.name}</h1>
-            <p className="text-sm text-zinc-600 mt-1">
-              {vessel.port} / {vessel.terminal} • {vessel.operation_type}
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">
-              {vessel.holds} holds • {vessel.cargo_grades?.join(", ") || "No grades"}
-            </p>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="mx-auto w-full max-w-7xl px-6 py-6 space-y-6">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold">{vessel.name}</h1>
+              <p className="text-sm text-zinc-600 mt-1">
+                {vessel.port} / {vessel.terminal} • {vessel.operation_type}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {vessel.holds} holds • {vessel.cargo_grades?.join(", ") || "No grades"}
+              </p>
+            </div>
+            {!commenced && (
+              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                Not Started
+              </span>
+            )}
+            {commenced && (
+              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+                In Progress
+              </span>
+            )}
           </div>
-          {!commenced && (
-            <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-              Not Started
-            </span>
-          )}
-          {commenced && (
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-              In Progress
-            </span>
-          )}
         </div>
-      </div>
 
-      {!commenced && (
-        <div className="rounded-2xl border bg-white shadow-sm p-6">
-          <h2 className="text-lg font-semibold mb-2">Operations Not Started</h2>
-          <p className="text-sm text-zinc-600 mb-4">
-            Click &quot;Commence Operations&quot; to start logging shifts.
-          </p>
-          <CommenceButton vesselId={vessel.id} />
-        </div>
-      )}
-
-      <div className="rounded-2xl border bg-white shadow-sm p-6">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Running SOF</h2>
-          {isAdmin && (
-            <details>
-              <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50">
-                Edit Running SOF
-              </summary>
-              <div className="mt-3">
-                <RunningSofEditor
-                  vesselId={vessel.id}
-                  events={runningShiftEvents.map((e) => ({
-                    id: e.id,
-                    shiftId: e.shiftId,
-                    from: e.from,
-                    to: e.to,
-                    reason: e.reason,
-                  }))}
-                  shiftOptions={shiftOptions}
-                />
-              </div>
-            </details>
-          )}
-        </div>
-        <p className="text-xs text-zinc-500 mb-4">
-          Only admin users (vessel creation level) can edit previously logged SOF entries.
-        </p>
-        {runningSofEvents.length === 0 ? (
-          <p className="text-sm text-zinc-500">No SOF events recorded yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-2 text-left">From</th>
-                  <th className="border border-gray-300 p-2 text-left">To</th>
-                  <th className="border border-gray-300 p-2 text-left">Day Type</th>
-                  <th className="border border-gray-300 p-2 text-left">Source</th>
-                  <th className="border border-gray-300 p-2 text-left">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runningSofEvents.map((event, idx) => (
-                  <tr key={`${event.from}-${idx}`}>
-                    <td className="border border-gray-300 p-2">{formatDateTime(event.from)}</td>
-                    <td className="border border-gray-300 p-2">{formatDateTime(event.to)}</td>
-                    <td className="border border-gray-300 p-2">{sofDayLabel(event.dayType)}</td>
-                    <td className="border border-gray-300 p-2">{event.source}</td>
-                    <td className="border border-gray-300 p-2">{event.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {!commenced && (
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Operations Not Started</h2>
+            <p className="text-sm text-zinc-600 mb-4">
+              Click &quot;Commence Operations&quot; to start logging shifts.
+            </p>
+            <CommenceButton vesselId={vessel.id} />
           </div>
         )}
-      </div>
 
-      {commenced && (
-        <>
-          <StowPlanEditor
-            vesselId={vessel.id}
-            holds={vessel.holds}
-            grades={vessel.cargo_grades || []}
-            currentPlan={stowPlan || []}
-            initialDrafts={initialDrafts}
-          />
-          
-          <ShiftForm
-            vesselId={vessel.id}
-            holds={vessel.holds}
-            grades={vessel.cargo_grades || []}
-            operationType={vessel.operation_type}
-            shiftType={vessel.shift_type}
-            stowPlan={stowPlan || []}
-            cumulativeTotals={cumulativeTotals}
-          />
-        </>
-      )}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Running SOF</h2>
+            {isAdmin && (
+              <details>
+                <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50">
+                  Edit Running SOF
+                </summary>
+                <div className="mt-3">
+                  <RunningSofEditor
+                    vesselId={vessel.id}
+                    events={runningShiftEvents.map((e) => ({
+                      id: e.id,
+                      shiftId: e.shiftId,
+                      from: e.from,
+                      to: e.to,
+                      reason: e.reason,
+                    }))}
+                    shiftOptions={shiftOptions}
+                  />
+                </div>
+              </details>
+            )}
+          </div>
+          <p className="text-xs text-zinc-500 mb-4">
+            Only admin users (vessel creation level) can edit previously logged SOF entries.
+          </p>
+          {runningSofEvents.length === 0 ? (
+            <p className="text-sm text-zinc-500">No SOF events recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Time</th>
+                    <th className="px-3 py-2 text-left">End Time</th>
+                    <th className="px-3 py-2 text-left">Event</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {runningSofEvents.map((event, idx) => (
+                    <tr key={`${event.id}-${idx}`} className="odd:bg-white even:bg-gray-50">
+                      <td className="px-3 py-2">{formatDateTime(event.from)}</td>
+                      <td className="px-3 py-2">{formatDateTime(event.to)}</td>
+                      <td className="px-3 py-2">{event.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {commenced && (
+          <>
+            <StowPlanEditor
+              vesselId={vessel.id}
+              holds={vessel.holds}
+              grades={vessel.cargo_grades || []}
+              currentPlan={stowPlan || []}
+              initialDrafts={initialDrafts}
+            />
+
+            <ShiftForm
+              vesselId={vessel.id}
+              holds={vessel.holds}
+              grades={vessel.cargo_grades || []}
+              operationType={vessel.operation_type}
+              shiftType={vessel.shift_type}
+              stowPlan={stowPlan || []}
+              cumulativeTotals={cumulativeTotals}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }
