@@ -1,7 +1,5 @@
 import { supabaseServer } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { cookies } from "next/headers";
 import CommenceButton from "@/components/commence-button";
 import ShiftForm from "@/components/shift-form";
 import StowPlanEditor from "@/components/stow-plan-editor";
@@ -18,10 +16,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
 
   const supabase = await supabaseServer();
-  const cookieStore = await cookies();
-  const internalAuth = cookieStore.get("antares-auth")?.value === "true";
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user && !internalAuth) redirect("/login");
 
   const admin = supabaseAdmin();
 
@@ -93,18 +88,9 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     });
   }
 
-  let membership: any = null;
   let profile: any = null;
 
   if (userData.user) {
-    const membershipRes = await admin
-      .from("vessel_members")
-      .select("is_head")
-      .eq("vessel_id", vessel.id)
-      .eq("user_id", userData.user.id)
-      .single();
-    membership = membershipRes.data;
-
     const profileRes = await admin
       .from("profiles")
       .select("role,username")
@@ -113,19 +99,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     profile = profileRes.data;
   }
 
-  const isAdmin = profile?.role === "admin" || internalAuth;
-  const isAgent = profile?.role === "agent";
-  const hasAccess = internalAuth || membership || isAdmin || isAgent;
-
-  if (!hasAccess) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-zinc-600 mt-2">You don&apos;t have permission to access this vessel.</p>
-        <p className="text-sm text-zinc-500 mt-4">Contact your admin for access.</p>
-      </div>
-    );
-  }
+  const isAdmin = profile?.role === "admin";
 
   const { data: timelineShifts } = await admin
     .from("shift_reports")
