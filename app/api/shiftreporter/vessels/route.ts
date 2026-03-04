@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const admin = supabaseAdmin();
 
-    // Verify user is authenticated and is admin
+    // Verify user is authenticated
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,17 +18,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from("profiles")
-      .select("role")
+      .select("id,role")
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (profileError || !profile) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
+    console.log("[vessels.create] User:", user.id);
+    console.log("[vessels.create] Profile:", profile);
+    console.log("[vessels.create] Payload:", body);
+
     const parsed = VesselCreateSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
