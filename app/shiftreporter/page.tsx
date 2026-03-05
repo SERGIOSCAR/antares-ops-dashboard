@@ -15,5 +15,11 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  return <VesselSetup existingVessels={[]} />;
+  const { data: vessels } = await supabase
+    .from("vessels")
+    .select("id,short_id,slug,name,port,status,created_at")
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+
+  return <VesselSetup existingVessels={vessels ?? []} />;
 }
