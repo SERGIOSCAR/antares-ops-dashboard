@@ -156,7 +156,7 @@ export default function UserManagementForm() {
     <div className="mx-auto max-w-5xl p-8 space-y-8">
       <h1 className="text-2xl font-semibold">User Management</h1>
 
-      <section className="space-y-4 rounded-lg border bg-white p-6 shadow-sm">
+      <section className="space-y-4 rounded-lg border bg-slate-800 p-6 shadow-sm">
         <h2 className="text-lg font-semibold">Create User</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input
@@ -200,7 +200,7 @@ export default function UserManagementForm() {
         </button>
       </section>
 
-      <section className="space-y-3 rounded-lg border bg-white p-6 shadow-sm">
+      <section className="space-y-3 rounded-lg border bg-slate-800 p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">User List</h2>
           <button
@@ -217,8 +217,8 @@ export default function UserManagementForm() {
           <p className="text-sm text-zinc-500">Loading users...</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-gray-200">
-              <thead className="bg-gray-100">
+            <table className="w-full text-sm border border-slate-700">
+              <thead className="bg-slate-700">
                 <tr>
                   <th className="text-left p-2 border-b">Email</th>
                   <th className="text-left p-2 border-b">Username</th>
@@ -238,7 +238,7 @@ export default function UserManagementForm() {
                           type="button"
                           disabled={actionLoadingUserId === u.id}
                           onClick={() => resetPassword(u.id, u.email)}
-                          className="px-2 py-1 rounded border text-xs hover:bg-gray-50 disabled:opacity-50"
+                          className="px-2 py-1 rounded border text-xs hover:bg-slate-700 disabled:opacity-50"
                         >
                           Reset Password
                         </button>
@@ -269,3 +269,4 @@ export default function UserManagementForm() {
     </div>
   );
 }
+

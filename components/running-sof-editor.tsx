@@ -55,7 +55,7 @@ export default function RunningSofEditor({
   });
   const [adding, setAdding] = useState(false);
   const fieldClass =
-    "w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+    "w-full border border-slate-600 rounded-md px-3 py-2 bg-slate-900 focus:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
   const withToken = async () => {
     const supabase = supabaseBrowser();
@@ -157,8 +157,8 @@ export default function RunningSofEditor({
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-4 mt-3">
-      <h3 className="text-lg font-semibold text-gray-800 mb-3">Running SOF Editor</h3>
+    <div className="rounded-lg border border-slate-700 bg-slate-800 shadow-sm p-4 mt-3">
+      <h3 className="text-lg font-semibold text-slate-100 mb-3">Running SOF Editor</h3>
       <p className="text-xs text-zinc-600 mb-3">Admin can add, edit, or delete any running SOF event.</p>
 
       <div className="grid grid-cols-12 gap-2 items-end border rounded p-3 mb-3">
@@ -272,4 +272,5 @@ export default function RunningSofEditor({
     </div>
   );
 }
+
 

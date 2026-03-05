@@ -37,7 +37,7 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
 
   const form = (
     <form onSubmit={handleSubmit} className="grid gap-[0.65rem]">
-      <label className="text-[0.9rem] text-[#4f4f4f]" htmlFor="email">
+      <label className="text-[0.9rem] text-slate-300" htmlFor="email">
         Email
       </label>
       <input
@@ -47,11 +47,11 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
         onChange={(event) => setEmail(event.target.value)}
         placeholder="Email"
         autoComplete="email"
-        className="w-full rounded-[8px] border border-[#d8d8d8] px-3 py-[0.65rem] text-base focus:border-[#111] focus:outline-[#111] focus:outline-2 focus:outline-offset-0"
+        className="w-full rounded-[8px] border border-slate-600 bg-slate-900 px-3 py-[0.65rem] text-base text-slate-100 focus:border-slate-500 focus:outline-slate-500 focus:outline-2 focus:outline-offset-0"
         required
       />
 
-      <label className="text-[0.9rem] text-[#4f4f4f]" htmlFor="password">
+      <label className="text-[0.9rem] text-slate-300" htmlFor="password">
         Password
       </label>
       <input
@@ -61,7 +61,7 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
         onChange={(event) => setPassword(event.target.value)}
         placeholder="Password"
         autoComplete="current-password"
-        className="w-full rounded-[8px] border border-[#d8d8d8] px-3 py-[0.65rem] text-base focus:border-[#111] focus:outline-[#111] focus:outline-2 focus:outline-offset-0"
+        className="w-full rounded-[8px] border border-slate-600 bg-slate-900 px-3 py-[0.65rem] text-base text-slate-100 focus:border-slate-500 focus:outline-slate-500 focus:outline-2 focus:outline-offset-0"
         required
       />
 
@@ -80,8 +80,8 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
   if (embedded) return form;
 
   return (
-    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-[#f9f9f9] to-[#f0f0f0] p-6">
-      <section className="grid w-full max-w-[440px] gap-[1.2rem] rounded-[14px] border border-[#e6e6e6] bg-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)] max-[480px]:p-[1.35rem]">
+    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-slate-900 to-slate-950 p-6">
+      <section className="grid w-full max-w-[440px] gap-[1.2rem] rounded-[14px] border border-slate-700 bg-slate-800 p-8 shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-[480px]:p-[1.35rem]">
         <a
           href="https://antaresshipping.com"
           target="_blank"
@@ -95,7 +95,7 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
           />
         </a>
 
-        <p className="m-0 text-[0.96rem] leading-[1.5] text-[#666]">
+        <p className="m-0 text-[0.96rem] leading-[1.5] text-slate-300">
           This is the Antares Operations Team intraweb Apps Manager. For full company information,
           please visit our website.
         </p>
@@ -105,3 +105,4 @@ export default function PortalLogin({ embedded = false }: { embedded?: boolean }
     </main>
   );
 }
+

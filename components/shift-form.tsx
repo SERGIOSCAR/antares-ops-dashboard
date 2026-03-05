@@ -462,7 +462,7 @@ export default function ShiftForm({
   };
 
   return (
-    <div className="p-6 border rounded-lg bg-white shadow-sm">
+    <div className="p-6 border rounded-lg bg-slate-800 shadow-sm">
       <h2 className="text-2xl font-bold mb-6">Submit Shift Report</h2>
       
       {existingShift && (
@@ -482,7 +482,7 @@ export default function ShiftForm({
               type="date"
               value={reportDate}
               onChange={(e) => setReportDate(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -491,7 +491,7 @@ export default function ShiftForm({
             <select
               value={shiftType}
               onChange={(e) => setShiftType(e.target.value)}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
             >
               {groupedScheduleOptions.typeA.length > 0 && groupedScheduleOptions.typeB.length > 0 ? (
                 <>
@@ -564,7 +564,7 @@ export default function ShiftForm({
                         );
                       }
                     }}
-                    className="col-span-2 border border-gray-300 p-2 rounded"
+                    className="col-span-2 border border-slate-600 p-2 rounded"
                   />
                   <input
                     type="text"
@@ -584,7 +584,7 @@ export default function ShiftForm({
                         );
                       }
                     }}
-                    className="col-span-2 border border-gray-300 p-2 rounded"
+                    className="col-span-2 border border-slate-600 p-2 rounded"
                   />
                   <div className="col-span-3">
                     <input
@@ -597,7 +597,7 @@ export default function ShiftForm({
                         )
                       }
                       placeholder="Type/select event"
-                      className="w-full border border-gray-300 p-2 rounded"
+                      className="w-full border border-slate-600 p-2 rounded"
                     />
                   </div>
                   <input
@@ -609,7 +609,7 @@ export default function ShiftForm({
                       )
                     }
                     placeholder="Specific add-on / manual text"
-                    className="col-span-4 border border-gray-300 p-2 rounded"
+                    className="col-span-4 border border-slate-600 p-2 rounded"
                   />
                   <button
                     type="button"
@@ -633,14 +633,14 @@ export default function ShiftForm({
         <div>
           <h3 className="font-semibold text-lg mb-3">Cargo Operations</h3>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
+            <table className="w-full border-collapse border border-slate-600">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 p-2">Hold</th>
-                  <th className="border border-gray-300 p-2">Grade</th>
-                  <th className="border border-gray-300 p-2">This Shift (MT)</th>
-                  <th className="border border-gray-300 p-2">Accumulated (MT)</th>
-                  <th className="border border-gray-300 p-2">Remaining (MT)</th>
+                <tr className="bg-slate-700">
+                  <th className="border border-slate-600 p-2">Hold</th>
+                  <th className="border border-slate-600 p-2">Grade</th>
+                  <th className="border border-slate-600 p-2">This Shift (MT)</th>
+                  <th className="border border-slate-600 p-2">Accumulated (MT)</th>
+                  <th className="border border-slate-600 p-2">Remaining (MT)</th>
                 </tr>
               </thead>
               <tbody>
@@ -650,13 +650,13 @@ export default function ShiftForm({
                   
                   return (
                     <tr key={hold}>
-                      <td className="border border-gray-300 p-2 text-center font-semibold">{hold}</td>
-                      <td className="border border-gray-300 p-2">
-                        <div className="w-full p-1 border rounded bg-gray-50">
+                      <td className="border border-slate-600 p-2 text-center font-semibold">{hold}</td>
+                      <td className="border border-slate-600 p-2">
+                        <div className="w-full p-1 border rounded bg-slate-900">
                           {selectedGrade || "-"}
                         </div>
                       </td>
-                      <td className="border border-gray-300 p-2">
+                      <td className="border border-slate-600 p-2">
                         <input
                           type="number"
                           step="0.01"
@@ -667,19 +667,19 @@ export default function ShiftForm({
                             }
                           }}
                           disabled={!selectedGrade}
-                          className="w-full p-1 border rounded disabled:bg-gray-100"
+                          className="w-full p-1 border rounded disabled:bg-slate-700"
                           placeholder={selectedGrade ? "0.00" : "No grade in stow plan"}
                         />
                       </td>
                       <td
-                        className={`border border-gray-300 p-2 text-center bg-blue-50 font-semibold ${
+                        className={`border border-slate-600 p-2 text-center bg-blue-50 font-semibold ${
                           selectedGrade && (accumulatedData[hold]?.[selectedGrade] || 0) < 0 ? "text-red-600" : ""
                         }`}
                       >
                         {selectedGrade ? (accumulatedData[hold]?.[selectedGrade] || 0).toFixed(2) : "0.00"}
                       </td>
                       <td
-                        className={`border border-gray-300 p-2 text-center bg-green-50 font-semibold ${
+                        className={`border border-slate-600 p-2 text-center bg-green-50 font-semibold ${
                           selectedGrade && (remainingData[hold]?.[selectedGrade] || 0) < 0 ? "text-red-600" : ""
                         }`}
                       >
@@ -704,7 +704,7 @@ export default function ShiftForm({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
             rows={4}
             placeholder="Add any observations, delays, or comments..."
           />
@@ -719,7 +719,7 @@ export default function ShiftForm({
             type="text"
             value={recipients}
             onChange={(e) => setRecipients(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
             placeholder="extra1@example.com, extra2@example.com"
           />
           <p className="text-xs text-gray-500 mt-1">
@@ -739,4 +739,5 @@ export default function ShiftForm({
     </div>
   );
 }
+
 

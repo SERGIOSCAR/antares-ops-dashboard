@@ -2,8 +2,8 @@ import PortalLogin from "@/components/portal-login";
 
 export default function Home() {
   return (
-    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-[#f9f9f9] to-[#f0f0f0] p-6">
-      <section className="grid w-full max-w-[440px] gap-[1.2rem] rounded-[14px] border border-[#e6e6e6] bg-white p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)] max-[480px]:p-[1.35rem]">
+    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-slate-900 to-slate-950 p-6">
+      <section className="grid w-full max-w-[440px] gap-[1.2rem] rounded-[14px] border border-slate-700 bg-slate-800 p-8 shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-[480px]:p-[1.35rem]">
         <a
           href="https://antaresshipping.com"
           target="_blank"
@@ -17,7 +17,7 @@ export default function Home() {
           />
         </a>
 
-        <p className="m-0 text-[0.96rem] leading-[1.5] text-[#666]">
+        <p className="m-0 text-[0.96rem] leading-[1.5] text-slate-300">
           This is the Antares Operations Team intraweb Apps Manager. For full company information,
           please visit our website.
         </p>
@@ -27,3 +27,4 @@ export default function Home() {
     </main>
   );
 }
+

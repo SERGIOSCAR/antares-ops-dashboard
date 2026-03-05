@@ -134,9 +134,9 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
   const commenced = !!vessel.commenced_at;
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-slate-900 min-h-screen">
       <div className="mx-auto w-full max-w-7xl px-6 py-6 space-y-6">
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">{vessel.name}</h1>
@@ -161,8 +161,8 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
         </div>
 
         {!commenced && (
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">Operations Not Started</h2>
+          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
+            <h2 className="text-lg font-semibold text-slate-100 mb-3">Operations Not Started</h2>
             <p className="text-sm text-zinc-600 mb-4">
               Click &quot;Commence Operations&quot; to start logging shifts.
             </p>
@@ -170,9 +170,9 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
           </div>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">Running SOF</h2>
+            <h2 className="text-lg font-semibold text-slate-100 mb-3">Running SOF</h2>
             {isAdmin && (
               <details>
                 <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50">
@@ -202,7 +202,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-600 sticky top-0 z-10">
+                <thead className="bg-slate-900 text-slate-300 sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2 text-left">Time</th>
                     <th className="px-3 py-2 text-left">End Time</th>
@@ -211,7 +211,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {runningSofEvents.map((event, idx) => (
-                    <tr key={`${event.id}-${idx}`} className="odd:bg-white even:bg-gray-50">
+                    <tr key={`${event.id}-${idx}`} className="odd:bg-slate-800 even:bg-slate-900">
                       <td className="px-3 py-2">{formatDateTime(event.from)}</td>
                       <td className="px-3 py-2">{formatDateTime(event.to)}</td>
                       <td className="px-3 py-2">{event.reason}</td>
@@ -248,3 +248,4 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     </div>
   );
 }
+

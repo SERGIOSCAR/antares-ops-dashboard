@@ -105,7 +105,7 @@ export default function PreOperationsSofManager({
   };
 
   return (
-    <div className="rounded-2xl border bg-white shadow-sm p-6">
+    <div className="rounded-2xl border bg-slate-800 shadow-sm p-6">
       <h2 className="text-lg font-semibold mb-2">Pre-Operations SOF Manager</h2>
       <p className="text-sm text-zinc-600 mb-4">
         Admin-only editor for pre-operation SOF entries.
@@ -171,4 +171,5 @@ export default function PreOperationsSofManager({
     </div>
   );
 }
+
 

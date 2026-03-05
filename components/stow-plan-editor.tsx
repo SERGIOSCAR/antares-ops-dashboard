@@ -75,7 +75,7 @@ export default function StowPlanEditor({
     aft: parseDraft(draftInputs.aft),
   };
   const fieldClass =
-    "w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+    "w-full border border-slate-600 rounded-md px-3 py-2 bg-slate-900 focus:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
   const router = useRouter();
 
@@ -166,10 +166,10 @@ export default function StowPlanEditor({
   const grandTotal = Object.values(totals).reduce((sum, val) => sum + val, 0);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+    <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">Stow Plan</h2>
+          <h2 className="text-lg font-semibold text-slate-100 mb-3">Stow Plan</h2>
           <p className="text-sm text-zinc-600">
             Total: {grandTotal.toFixed(3)} MT
             {Object.entries(totals).map(([grade, mt]) => (
@@ -352,4 +352,5 @@ export default function StowPlanEditor({
     </div>
   );
 }
+
 

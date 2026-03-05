@@ -83,7 +83,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
   };
 
   return (
-    <div className="rounded-2xl border bg-white shadow-sm p-6">
+    <div className="rounded-2xl border bg-slate-800 shadow-sm p-6">
       <h2 className="text-lg font-semibold mb-2">Pre-Operations / SOF Events</h2>
       <p className="text-sm text-zinc-600 mb-4">
         Agent-only input for events before commencement. Saved to Running SOF and future reports (no email trigger).
@@ -96,7 +96,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -106,7 +106,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
               value={from}
               onChange={(e) => setFrom(e.target.value)}
               placeholder="HH:MM"
-              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+              className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
           <div>
@@ -115,7 +115,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="HH:MM"
-              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+              className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
             placeholder="Select/type event"
-            className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
           />
           <datalist id="pre-op-predefined-events">
             {PREDEFINED_EVENTS.map((event) => (
@@ -143,7 +143,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             value={addon}
             onChange={(e) => setAddon(e.target.value)}
             placeholder="Specific detail"
-            className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
           />
         </div>
       </div>
@@ -159,4 +159,5 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
     </div>
   );
 }
+
 
