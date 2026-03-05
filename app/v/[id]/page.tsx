@@ -143,7 +143,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
             <p className="text-sm text-slate-300">
               {vessel.port} | {vessel.terminal} | {vessel.operation_type}
             </p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-300">
               {vessel.holds} holds | {vessel.cargo_grades?.join(", ") || "No grades"}
             </p>
           </div>
@@ -255,3 +255,4 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     </div>
   );
 }
+

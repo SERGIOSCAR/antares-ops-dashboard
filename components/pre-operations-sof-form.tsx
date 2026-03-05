@@ -75,8 +75,8 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
       setAddon("");
       alert("✅ Pre-operation SOF event saved (no email sent).");
       router.refresh();
-    } catch (e: any) {
-      alert(`Error: ${e?.message || "Failed to save pre-operation event"}`);
+    } catch (e: unknown) {
+      alert(`Error: ${e instanceof Error ? e.message : "Failed to save pre-operation event"}`);
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-zinc-300"
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -106,7 +106,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
               value={from}
               onChange={(e) => setFrom(e.target.value)}
               placeholder="HH:MM"
-              className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+              className="h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
           <div>
@@ -115,7 +115,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="HH:MM"
-              className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+              className="h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
             placeholder="Select/type event"
-            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-zinc-300"
           />
           <datalist id="pre-op-predefined-events">
             {PREDEFINED_EVENTS.map((event) => (
@@ -143,7 +143,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
             value={addon}
             onChange={(e) => setAddon(e.target.value)}
             placeholder="Specific detail"
-            className="h-10 w-full rounded-md border bg-slate-800 px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+            className="h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-zinc-300"
           />
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function PreOperationsSofForm({ vesselId }: { vesselId: string })
         type="button"
         onClick={onSubmit}
         disabled={loading}
-        className="mt-4 h-10 rounded-md bg-zinc-900 text-white font-medium px-4 hover:bg-zinc-800 disabled:opacity-50"
+        className="mt-4 min-h-[44px] rounded-md bg-zinc-900 px-4 font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
       >
         {loading ? "Saving..." : "Save Pre-Operation SOF Event"}
       </button>

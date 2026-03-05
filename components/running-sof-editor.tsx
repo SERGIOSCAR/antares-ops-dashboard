@@ -47,6 +47,8 @@ export default function RunningSofEditor({
   const router = useRouter();
   const [rows, setRows] = useState<RowState[]>(events);
   const hasRows = useMemo(() => rows.length > 0, [rows]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ from: string; reason: string }>({ from: "", reason: "" });
   const [newRow, setNewRow] = useState({
     shiftId: shiftOptions[0]?.id || "",
     from: "",
@@ -55,7 +57,7 @@ export default function RunningSofEditor({
   });
   const [adding, setAdding] = useState(false);
   const fieldClass =
-    "w-full border border-slate-600 rounded-md px-3 py-2 bg-slate-900 focus:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+    "w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const withToken = async () => {
     const supabase = supabaseBrowser();
@@ -89,8 +91,8 @@ export default function RunningSofEditor({
 
       alert("Running SOF event updated.");
       router.refresh();
-    } catch (error: any) {
-      alert(`Error: ${error?.message || "Failed to update event"}`);
+    } catch (error: unknown) {
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to update event"}`);
     } finally {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, saving: false } : r)));
     }
@@ -115,8 +117,8 @@ export default function RunningSofEditor({
       setRows((prev) => prev.filter((r) => r.id !== id));
       alert("Running SOF event deleted.");
       router.refresh();
-    } catch (error: any) {
-      alert(`Error: ${error?.message || "Failed to delete event"}`);
+    } catch (error: unknown) {
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to delete event"}`);
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, deleting: false } : r)));
     }
   };
@@ -149,21 +151,38 @@ export default function RunningSofEditor({
       setNewRow((prev) => ({ ...prev, from: "", to: "", reason: "" }));
       alert("Running SOF event added.");
       router.refresh();
-    } catch (error: any) {
-      alert(`Error: ${error?.message || "Failed to add event"}`);
+    } catch (error: unknown) {
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to add event"}`);
     } finally {
       setAdding(false);
     }
   };
 
-  return (
-    <div className="rounded-lg border border-slate-700 bg-slate-800 shadow-sm p-4 mt-3">
-      <h3 className="text-lg font-semibold text-slate-100 mb-3">Running SOF Editor</h3>
-      <p className="text-xs text-zinc-600 mb-3">Admin can add, edit, or delete any running SOF event.</p>
+  const startEdit = (row: RowState) => {
+    setEditingId(row.id);
+    setEditDraft({
+      from: toInputDateTime(row.from),
+      reason: row.reason,
+    });
+  };
 
-      <div className="grid grid-cols-12 gap-2 items-end border rounded p-3 mb-3">
+  const saveEdit = async (row: RowState) => {
+    await saveRow({
+      ...row,
+      from: editDraft.from,
+      reason: editDraft.reason,
+    });
+    setEditingId(null);
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
+      <h3 className="mb-3 text-lg font-semibold text-slate-100">Running SOF Editor</h3>
+      <p className="mb-3 text-xs text-slate-400">Admin can add, edit, or delete any running SOF event.</p>
+
+      <div className="mb-3 grid grid-cols-12 items-end gap-2 rounded border border-slate-700 p-3">
         <div className="col-span-3">
-          <label className="text-xs text-zinc-600 block mb-1">Shift</label>
+          <label className="mb-1 block text-xs text-slate-400">Shift</label>
           <select
             value={newRow.shiftId}
             onChange={(e) => setNewRow((prev) => ({ ...prev, shiftId: e.target.value }))}
@@ -177,7 +196,7 @@ export default function RunningSofEditor({
           </select>
         </div>
         <div className="col-span-3">
-          <label className="text-xs text-zinc-600 block mb-1">From</label>
+          <label className="mb-1 block text-xs text-slate-400">From</label>
           <input
             type="datetime-local"
             value={newRow.from}
@@ -186,7 +205,7 @@ export default function RunningSofEditor({
           />
         </div>
         <div className="col-span-3">
-          <label className="text-xs text-zinc-600 block mb-1">To</label>
+          <label className="mb-1 block text-xs text-slate-400">To</label>
           <input
             type="datetime-local"
             value={newRow.to}
@@ -195,7 +214,7 @@ export default function RunningSofEditor({
           />
         </div>
         <div className="col-span-2">
-          <label className="text-xs text-zinc-600 block mb-1">Reason</label>
+          <label className="mb-1 block text-xs text-slate-400">Reason</label>
           <input
             type="text"
             value={newRow.reason}
@@ -207,70 +226,91 @@ export default function RunningSofEditor({
           type="button"
           onClick={addRow}
           disabled={adding}
-          className="col-span-1 rounded bg-zinc-900 text-white px-2 py-2 text-sm disabled:opacity-50"
+          className="col-span-1 min-h-[44px] rounded bg-zinc-900 px-2 py-2 text-sm text-white disabled:opacity-50"
         >
           {adding ? "..." : "Add"}
         </button>
       </div>
 
       {!hasRows ? (
-        <p className="text-sm text-zinc-500">No events to edit.</p>
+        <p className="text-sm text-slate-400">No events to edit.</p>
       ) : (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <div key={row.id} className="grid grid-cols-12 gap-2 items-center border rounded p-3">
-              <input
-                type="datetime-local"
-                value={toInputDateTime(row.from)}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r) => (r.id === row.id ? { ...r, from: e.target.value } : r))
-                  )
-                }
-                className={`col-span-3 ${fieldClass}`}
-              />
-              <input
-                type="datetime-local"
-                value={toInputDateTime(row.to)}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r) => (r.id === row.id ? { ...r, to: e.target.value } : r))
-                  )
-                }
-                className={`col-span-3 ${fieldClass}`}
-              />
-              <input
-                type="text"
-                value={row.reason}
-                onChange={(e) =>
-                  setRows((prev) =>
-                    prev.map((r) => (r.id === row.id ? { ...r, reason: e.target.value } : r))
-                  )
-                }
-                className={`col-span-4 ${fieldClass}`}
-              />
-              <button
-                type="button"
-                disabled={!!row.saving || !!row.deleting}
-                onClick={() => saveRow(row)}
-                className="col-span-1 rounded bg-zinc-900 text-white px-2 py-2 text-sm disabled:opacity-50"
-              >
-                {row.saving ? "..." : "Save"}
-              </button>
-              <button
-                type="button"
-                disabled={!!row.saving || !!row.deleting}
-                onClick={() => deleteRow(row.id)}
-                className="col-span-1 rounded border border-red-300 text-red-600 px-2 py-2 text-sm disabled:opacity-50"
-              >
-                {row.deleting ? "..." : "Del"}
-              </button>
-            </div>
-          ))}
+        <div className="overflow-x-auto rounded border border-slate-700">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-800 text-slate-300">
+              <tr>
+                <th className="px-3 py-2 text-left">Time</th>
+                <th className="px-3 py-2 text-left">Event</th>
+                <th className="px-3 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700">
+              {rows.map((row) => (
+                <tr key={row.id} className="bg-slate-900">
+                  <td className="px-3 py-2">
+                    {editingId === row.id ? (
+                      <input
+                        type="datetime-local"
+                        value={editDraft.from}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, from: e.target.value }))}
+                        className={fieldClass}
+                      />
+                    ) : (
+                      <span className="text-slate-100">{toInputDateTime(row.from).replace("T", " ")}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {editingId === row.id ? (
+                      <input
+                        type="text"
+                        value={editDraft.reason}
+                        onChange={(e) => setEditDraft((prev) => ({ ...prev, reason: e.target.value }))}
+                        className={fieldClass}
+                      />
+                    ) : (
+                      <span className="text-slate-100">{row.reason}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      {editingId === row.id ? (
+                        <>
+                          <button
+                            className="min-h-[44px] text-blue-400 hover:text-blue-300"
+                            onClick={() => saveEdit(row)}
+                            disabled={!!row.saving}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="min-h-[44px] text-slate-300 hover:text-slate-200"
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="min-h-[44px] text-blue-400 hover:text-blue-300" onClick={() => startEdit(row)}>
+                            Edit
+                          </button>
+                          <button
+                            className="min-h-[44px] text-red-400 hover:text-red-300"
+                            onClick={() => deleteRow(row.id)}
+                            disabled={!!row.deleting}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 }
-
-

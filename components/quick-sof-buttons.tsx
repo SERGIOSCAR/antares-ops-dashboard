@@ -71,7 +71,7 @@ export default function QuickSofButtons({ vesselId, defaultShiftId }: { vesselId
           key={event}
           onClick={() => addSOFEvent(event)}
           disabled={loading}
-          className="rounded-md bg-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 disabled:opacity-50"
+          className="min-h-[44px] rounded-md bg-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 disabled:opacity-50"
         >
           {event}
         </button>

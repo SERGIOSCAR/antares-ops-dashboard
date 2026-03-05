@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
 
   const router = useRouter();
   const inputClass =
-    "h-10 w-full rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500";
+    "h-10 w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500";
   const labelClass = "mb-1 block text-sm text-slate-300";
 
   const onSubmit = async () => {
@@ -110,7 +110,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
               <button
                 type="button"
                 onClick={() => router.push(`/v/${createdVessel.shortId}`)}
-                className="h-10 rounded-md bg-blue-600 font-medium text-white hover:bg-blue-700"
+                className="min-h-[44px] rounded-md bg-blue-600 font-medium text-white hover:bg-blue-700"
               >
                 Go to &quot;{createdVessel.name}&quot;
               </button>
@@ -119,7 +119,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                 onClick={async () => {
                   await navigator.clipboard.writeText(createdVessel.fullLink);
                 }}
-                className="h-10 rounded-md border border-slate-600 bg-slate-900 font-medium text-slate-100 hover:bg-slate-800"
+                className="min-h-[44px] rounded-md border border-slate-600 bg-slate-900 font-medium text-slate-100 hover:bg-slate-800"
               >
                 Copy and Share Vessel Link
               </button>
@@ -129,7 +129,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                   setCreatedVessel(null);
                   router.push("/admin");
                 }}
-                className="h-10 rounded-md bg-zinc-900 font-medium text-white hover:bg-zinc-800"
+                className="min-h-[44px] rounded-md bg-zinc-900 font-medium text-white hover:bg-zinc-800"
               >
                 Save and Close
               </button>
@@ -215,7 +215,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                     value={recipients}
                     onChange={(e) => setRecipients(e.target.value)}
                     placeholder="master@ship.com, ops@agency.com"
-                    className="min-h-[70px] w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500"
+                    className="min-h-[70px] w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500"
                   />
                 </div>
 
@@ -232,7 +232,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                 <button
                   onClick={onSubmit}
                   disabled={creating || !name || !port || !terminal}
-                  className="h-10 w-full rounded-md bg-zinc-900 font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+                  className="min-h-[44px] w-full rounded-md bg-zinc-900 font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
                 >
                   {creating ? "Creating..." : "Create Vessel"}
                 </button>
@@ -241,7 +241,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
 
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold">Open Vessels</h2>
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-slate-300">
                 Vessels created here will appear in the operations dashboard.
               </div>
             </div>
@@ -251,3 +251,4 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
     </>
   );
 }
+

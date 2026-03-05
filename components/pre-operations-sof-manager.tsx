@@ -72,8 +72,8 @@ export default function PreOperationsSofManager({
 
       alert("Pre-operation SOF event updated.");
       router.refresh();
-    } catch (error: any) {
-      alert(`Error: ${error?.message || "Failed to update pre-operation event"}`);
+    } catch (error: unknown) {
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to update pre-operation event"}`);
     } finally {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, saving: false } : r)));
     }
@@ -98,8 +98,8 @@ export default function PreOperationsSofManager({
       setRows((prev) => prev.filter((r) => r.id !== id));
       alert("Pre-operation SOF event deleted.");
       router.refresh();
-    } catch (error: any) {
-      alert(`Error: ${error?.message || "Failed to delete pre-operation event"}`);
+    } catch (error: unknown) {
+      alert(`Error: ${error instanceof Error ? error.message : "Failed to delete pre-operation event"}`);
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, deleting: false } : r)));
     }
   };
@@ -125,7 +125,7 @@ export default function PreOperationsSofManager({
                     prev.map((r) => (r.id === row.id ? { ...r, from: e.target.value } : r))
                   )
                 }
-                className="col-span-3 border rounded p-2"
+                className="col-span-3 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
               />
               <input
                 type="datetime-local"
@@ -135,7 +135,7 @@ export default function PreOperationsSofManager({
                     prev.map((r) => (r.id === row.id ? { ...r, to: e.target.value } : r))
                   )
                 }
-                className="col-span-3 border rounded p-2"
+                className="col-span-3 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
               />
               <input
                 type="text"
@@ -145,14 +145,14 @@ export default function PreOperationsSofManager({
                     prev.map((r) => (r.id === row.id ? { ...r, reason: e.target.value } : r))
                   )
                 }
-                className="col-span-4 border rounded p-2"
+                className="col-span-4 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
                 placeholder="Reason"
               />
               <button
                 type="button"
                 disabled={!!row.saving || !!row.deleting}
                 onClick={() => saveRow(row)}
-                className="col-span-1 rounded bg-zinc-900 text-white px-2 py-2 text-sm disabled:opacity-50"
+                className="col-span-1 min-h-[44px] rounded bg-zinc-900 px-2 py-2 text-sm text-white disabled:opacity-50"
               >
                 {row.saving ? "..." : "Save"}
               </button>
@@ -160,7 +160,7 @@ export default function PreOperationsSofManager({
                 type="button"
                 disabled={!!row.saving || !!row.deleting}
                 onClick={() => deleteRow(row.id)}
-                className="col-span-1 rounded border border-red-300 text-red-600 px-2 py-2 text-sm disabled:opacity-50"
+                className="col-span-1 min-h-[44px] rounded border border-red-300 px-2 py-2 text-sm text-red-600 disabled:opacity-50"
               >
                 {row.deleting ? "..." : "Del"}
               </button>

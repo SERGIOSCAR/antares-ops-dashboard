@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -254,7 +254,7 @@ export default function ShiftForm({
     // For LOAD, warn when above plan. For DISCHARGE, allow over-discharge (negative balance).
     if (operationType === "LOAD" && newAccumulated > planned && planned > 0) {
       alert(
-        `⚠️ Hold ${hold} Total Surpasses Stowplan!\n\n` +
+        `âš ï¸ Hold ${hold} Total Surpasses Stowplan!\n\n` +
         `Grade: ${grade}\n` +
         `Planned: ${planned.toFixed(2)} MT\n` +
         `Already Loaded: ${loaded.toFixed(2)} MT\n` +
@@ -308,7 +308,7 @@ export default function ShiftForm({
       // If duplicate shift exists, ask for confirmation
       if (existingShift) {
         const confirmed = confirm(
-          `⚠️ This shift has been loaded already.\n\n` +
+          `âš ï¸ This shift has been loaded already.\n\n` +
           `Existing shift:\n` +
           `Date: ${reportDate}\n` +
           `Shift: ${shiftType}\n\n` +
@@ -404,7 +404,7 @@ export default function ShiftForm({
         const conflictData = await res.json().catch(() => ({}));
         if (conflictData?.error === "SHIFT_ALREADY_EXISTS" && !payload.isRevised) {
           const confirmed = confirm(
-            `⚠️ This shift has been loaded already.\n\n` +
+            `âš ï¸ This shift has been loaded already.\n\n` +
             `If you wish to proceed with this new one as revised click YES.\n` +
             `Otherwise click NO.`
           );
@@ -435,14 +435,14 @@ export default function ShiftForm({
 
       const email = responseData?.email as { success?: boolean; error?: string; emailId?: string } | undefined;
       const submitMessage = payload.isRevised
-        ? "✅ Shift report REVISED successfully!"
-        : "✅ Shift report submitted successfully!";
+        ? "âœ… Shift report REVISED successfully!"
+        : "âœ… Shift report submitted successfully!";
 
       const emailMessage = email?.success
-        ? `\n\n📧 Email accepted by provider${email.emailId ? ` (ref: ${email.emailId})` : ""}.`
-        : `\n\n⚠️ Shift saved, but email was not confirmed: ${email?.error || "Unknown email issue"}`;
+        ? `\n\nðŸ“§ Email accepted by provider${email.emailId ? ` (ref: ${email.emailId})` : ""}.`
+        : `\n\nâš ï¸ Shift saved, but email was not confirmed: ${email?.error || "Unknown email issue"}`;
       
-      alert(`${submitMessage}${email?.success ? "" : "\n\n⚠️ Shift saved, but email was not confirmed."}`);
+      alert(`${submitMessage}${email?.success ? "" : "\n\nâš ï¸ Shift saved, but email was not confirmed."}`);
       router.refresh();
 
       // Reset form
@@ -468,7 +468,7 @@ export default function ShiftForm({
       {existingShift && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded">
           <p className="text-yellow-800 font-semibold">
-            ⚠️ This shift has been loaded already. Submit as revised only if you want to replace it.
+            âš ï¸ This shift has been loaded already. Submit as revised only if you want to replace it.
           </p>
         </div>
       )}
@@ -482,7 +482,7 @@ export default function ShiftForm({
               type="date"
               value={reportDate}
               onChange={(e) => setReportDate(e.target.value)}
-              className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -491,7 +491,7 @@ export default function ShiftForm({
             <select
               value={shiftType}
               onChange={(e) => setShiftType(e.target.value)}
-              className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
+              className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
             >
               {groupedScheduleOptions.typeA.length > 0 && groupedScheduleOptions.typeB.length > 0 ? (
                 <>
@@ -533,7 +533,7 @@ export default function ShiftForm({
             <button
               type="button"
               onClick={() => setDelays((prev) => [...prev, { from: "", to: "", eventType: "", addon: "" }])}
-              className="px-3 py-1 rounded bg-zinc-800 text-white text-sm hover:bg-zinc-700"
+              className="min-h-[44px] rounded bg-zinc-800 px-3 py-1 text-sm text-white hover:bg-zinc-700"
             >
               + Add Event
             </button>
@@ -541,7 +541,7 @@ export default function ShiftForm({
 
           {delays.length === 0 ? (
             <p className="text-sm text-zinc-500">
-              Add event times (e.g. 02:30–03:15 meal break) or isolated events (e.g. 04:10 hatch covers opened).
+              Add event times (e.g. 02:30â€“03:15 meal break) or isolated events (e.g. 04:10 hatch covers opened).
             </p>
           ) : (
             <div className="space-y-2">
@@ -564,7 +564,7 @@ export default function ShiftForm({
                         );
                       }
                     }}
-                    className="col-span-2 border border-slate-600 p-2 rounded"
+                    className="col-span-2 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
                   />
                   <input
                     type="text"
@@ -584,7 +584,7 @@ export default function ShiftForm({
                         );
                       }
                     }}
-                    className="col-span-2 border border-slate-600 p-2 rounded"
+                    className="col-span-2 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
                   />
                   <div className="col-span-3">
                     <input
@@ -597,7 +597,7 @@ export default function ShiftForm({
                         )
                       }
                       placeholder="Type/select event"
-                      className="w-full border border-slate-600 p-2 rounded"
+                      className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
                     />
                   </div>
                   <input
@@ -609,14 +609,14 @@ export default function ShiftForm({
                       )
                     }
                     placeholder="Specific add-on / manual text"
-                    className="col-span-4 border border-slate-600 p-2 rounded"
+                    className="col-span-4 touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100"
                   />
                   <button
                     type="button"
                     onClick={() => setDelays((prev) => prev.filter((_, i) => i !== idx))}
-                    className="col-span-1 border border-red-300 text-red-600 rounded p-2 hover:bg-red-50"
+                    className="col-span-1 min-h-[44px] rounded border border-red-300 p-2 text-red-600 hover:bg-red-900/30"
                   >
-                    ✕
+                    âœ•
                   </button>
                 </div>
               ))}
@@ -669,7 +669,7 @@ export default function ShiftForm({
                             }
                           }}
                           disabled={!selectedGrade}
-                          className="w-full rounded border border-slate-600 bg-slate-900 p-1 text-slate-100 disabled:bg-slate-800"
+                          className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-1 text-slate-100 disabled:bg-slate-800"
                           placeholder={selectedGrade ? "0.00" : "No grade in stow plan"}
                         />
                       </td>
@@ -706,7 +706,7 @@ export default function ShiftForm({
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
             rows={4}
             placeholder="Add any observations, delays, or comments..."
           />
@@ -721,11 +721,11 @@ export default function ShiftForm({
             type="text"
             value={recipients}
             onChange={(e) => setRecipients(e.target.value)}
-            className="w-full border border-slate-600 p-2 rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
             placeholder="extra1@example.com, extra2@example.com"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            💡 Main recipients are configured in vessel settings. Add extra recipients here if needed (comma-separated).
+          <p className="text-xs text-slate-400 mt-1">
+            ðŸ’¡ Main recipients are configured in vessel settings. Add extra recipients here if needed (comma-separated).
           </p>
         </div>
 
@@ -733,7 +733,7 @@ export default function ShiftForm({
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+          className="min-h-[44px] w-full rounded-lg bg-blue-600 px-6 py-3 text-lg font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Submitting..." : existingShift ? "Submit Revised Shift Report" : "Submit Shift Report"}
         </button>
@@ -741,5 +741,6 @@ export default function ShiftForm({
     </div>
   );
 }
+
 
 
