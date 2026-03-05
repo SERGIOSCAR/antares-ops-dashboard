@@ -633,14 +633,14 @@ export default function ShiftForm({
         <div>
           <h3 className="font-semibold text-lg mb-3">Cargo Operations</h3>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-slate-600">
+            <table className="w-full border-collapse border border-slate-700 bg-slate-800 text-slate-100">
               <thead>
-                <tr className="bg-slate-700">
-                  <th className="border border-slate-600 p-2">Hold</th>
-                  <th className="border border-slate-600 p-2">Grade</th>
-                  <th className="border border-slate-600 p-2">This Shift (MT)</th>
-                  <th className="border border-slate-600 p-2">Accumulated (MT)</th>
-                  <th className="border border-slate-600 p-2">Remaining (MT)</th>
+                <tr className="border-b border-slate-700 bg-slate-800">
+                  <th className="border border-slate-700 p-2">Hold</th>
+                  <th className="border border-slate-700 p-2">Grade</th>
+                  <th className="border border-slate-700 p-2">This Shift (MT)</th>
+                  <th className="border border-slate-700 p-2">Accumulated (MT)</th>
+                  <th className="border border-slate-700 p-2">Remaining (MT)</th>
                 </tr>
               </thead>
               <tbody>
@@ -649,14 +649,16 @@ export default function ShiftForm({
                   const tonnage = cargoData[hold]?.[selectedGrade] || 0;
                   
                   return (
-                    <tr key={hold}>
-                      <td className="border border-slate-600 p-2 text-center font-semibold">{hold}</td>
-                      <td className="border border-slate-600 p-2">
-                        <div className="w-full p-1 border rounded bg-slate-900">
+                    <tr key={hold} className="border-b border-slate-700">
+                      <td className="border border-slate-700 bg-slate-900 p-2 text-center font-semibold text-slate-100">
+                        {hold}
+                      </td>
+                      <td className="border border-slate-700 bg-slate-900 p-2 text-slate-100">
+                        <div className="w-full rounded border border-slate-600 bg-slate-900 p-1 text-slate-100">
                           {selectedGrade || "-"}
                         </div>
                       </td>
-                      <td className="border border-slate-600 p-2">
+                      <td className="border border-slate-700 bg-slate-900 p-2">
                         <input
                           type="number"
                           step="0.01"
@@ -667,19 +669,19 @@ export default function ShiftForm({
                             }
                           }}
                           disabled={!selectedGrade}
-                          className="w-full p-1 border rounded disabled:bg-slate-700"
+                          className="w-full rounded border border-slate-600 bg-slate-900 p-1 text-slate-100 disabled:bg-slate-800"
                           placeholder={selectedGrade ? "0.00" : "No grade in stow plan"}
                         />
                       </td>
                       <td
-                        className={`border border-slate-600 p-2 text-center bg-blue-50 font-semibold ${
+                        className={`border border-slate-700 bg-slate-900 p-2 text-center font-semibold text-slate-100 ${
                           selectedGrade && (accumulatedData[hold]?.[selectedGrade] || 0) < 0 ? "text-red-600" : ""
                         }`}
                       >
                         {selectedGrade ? (accumulatedData[hold]?.[selectedGrade] || 0).toFixed(2) : "0.00"}
                       </td>
                       <td
-                        className={`border border-slate-600 p-2 text-center bg-green-50 font-semibold ${
+                        className={`border border-slate-700 bg-slate-900 p-2 text-center font-semibold text-slate-100 ${
                           selectedGrade && (remainingData[hold]?.[selectedGrade] || 0) < 0 ? "text-red-600" : ""
                         }`}
                       >

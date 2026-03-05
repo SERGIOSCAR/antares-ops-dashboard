@@ -20,9 +20,7 @@ export default async function HomePage() {
     .select("id,name,port,slug,created_at")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("[shiftreporter] vessels query error:", error);
-  }
+  if (error) console.error("Vessel query error:", error);
 
   return <VesselSetup existingVessels={vessels ?? []} />;
 }
