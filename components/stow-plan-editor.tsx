@@ -75,7 +75,7 @@ export default function StowPlanEditor({
     aft: parseDraft(draftInputs.aft),
   };
   const fieldClass =
-    "w-full border border-slate-600 rounded-md px-3 py-2 bg-slate-900 focus:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+    "w-full bg-slate-900 border border-slate-600 text-slate-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   const router = useRouter();
 
@@ -170,10 +170,10 @@ export default function StowPlanEditor({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-100 mb-3">Stow Plan</h2>
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-slate-100 font-medium">
             Total: {grandTotal.toFixed(3)} MT
             {Object.entries(totals).map(([grade, mt]) => (
-              <span key={grade} className="ml-3 text-zinc-500">
+              <span key={grade} className="ml-3 text-slate-100 font-medium">
                 {grade}: {mt.toFixed(3)} MT
               </span>
             ))}
@@ -202,7 +202,7 @@ export default function StowPlanEditor({
               className={fieldClass}
             />
           ) : (
-            <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
+            <div className="flex h-9 items-center rounded border border-slate-600 bg-slate-900 px-2 text-sm text-slate-100">
               {draftNumbers.fwd.toFixed(2)}
             </div>
           )}
@@ -220,7 +220,7 @@ export default function StowPlanEditor({
               className={fieldClass}
             />
           ) : (
-            <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
+            <div className="flex h-9 items-center rounded border border-slate-600 bg-slate-900 px-2 text-sm text-slate-100">
               {draftNumbers.mean.toFixed(2)}
             </div>
           )}
@@ -238,7 +238,7 @@ export default function StowPlanEditor({
               className={fieldClass}
             />
           ) : (
-            <div className="h-9 rounded border bg-zinc-50 px-2 text-sm flex items-center">
+            <div className="flex h-9 items-center rounded border border-slate-600 bg-slate-900 px-2 text-sm text-slate-100">
               {draftNumbers.aft.toFixed(2)}
             </div>
           )}
@@ -249,8 +249,8 @@ export default function StowPlanEditor({
         <div className="space-y-4">
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b bg-zinc-50">
+              <thead className="bg-slate-800 text-slate-200">
+                <tr className="border-b border-slate-700">
                   <th className="p-2 text-left font-medium">Hold</th>
                   <th className="p-2 text-left font-medium">Grade</th>
                   <th className="p-2 text-left font-medium">Total MT</th>
@@ -262,7 +262,7 @@ export default function StowPlanEditor({
                   const hold = i + 1;
                   const holdData = plan[hold] || { grade: grades[0] || "", total_mt: 0, condition: "" };
                   return (
-                    <tr key={hold} className="border-b">
+                    <tr key={hold} className="border-b border-slate-700">
                       <td className="p-2 font-medium">Hold {hold}</td>
                       <td className="p-2">
                         <select
@@ -324,8 +324,8 @@ export default function StowPlanEditor({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b bg-zinc-50">
+            <thead className="bg-slate-800 text-slate-200">
+              <tr className="border-b border-slate-700">
                 <th className="p-2 text-left font-medium">Hold</th>
                 <th className="p-2 text-left font-medium">Grade</th>
                 <th className="p-2 text-left font-medium">Total MT</th>
@@ -337,7 +337,7 @@ export default function StowPlanEditor({
                 const hold = i + 1;
                 const holdData = plan[hold] || { grade: "-", total_mt: 0, condition: "" };
                 return (
-                  <tr key={hold} className="border-b">
+                  <tr key={hold} className="border-b border-slate-700">
                     <td className="p-2 font-medium">Hold {hold}</td>
                     <td className="p-2">{holdData.grade}</td>
                     <td className="p-2">{holdData.total_mt.toFixed(3)} MT</td>
