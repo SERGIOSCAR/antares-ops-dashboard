@@ -7,43 +7,22 @@ export default function DashboardPage() {
   ];
 
   return (
-    <main
-      style={{
-        maxWidth: 960,
-        margin: "40px auto",
-        padding: "0 20px",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      <h1 style={{ marginBottom: 8 }}>Antares Ops Dashboard</h1>
-      <p style={{ marginTop: 0, marginBottom: 20, color: "#555" }}>
+    <main className="mx-auto my-10 max-w-[960px] px-5 font-sans">
+      <h1 className="mb-2 text-slate-100">Antares Ops Dashboard</h1>
+      <p className="mb-5 mt-0 text-slate-300">
         Internal portal modules
       </p>
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <section className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {apps.map((app) => (
           <a
             key={app.name}
             href={app.href}
             target={app.href.startsWith("http") ? "_blank" : undefined}
             rel={app.href.startsWith("http") ? "noopener noreferrer" : undefined}
-            style={{
-              display: "block",
-              padding: 14,
-              border: "1px solid #ddd",
-              borderRadius: 10,
-              textDecoration: "none",
-              color: "inherit",
-              background: "#fff",
-            }}
+            className="block cursor-pointer rounded-xl border border-slate-700 bg-slate-800 p-6 text-inherit no-underline transition hover:bg-slate-700"
           >
-            <strong>{app.name}</strong>
+            <strong className="font-semibold text-slate-100">{app.name}</strong>
           </a>
         ))}
       </section>
