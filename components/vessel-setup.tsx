@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -9,7 +8,6 @@ type VesselListItem = {
   id: string;
   name: string;
   port: string;
-  short_id?: string;
   slug?: string;
 };
 
@@ -249,20 +247,13 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
 
             <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold text-slate-100">Open Vessels</h2>
-              {existingVessels.length === 0 ? (
+              {existingVessels?.length === 0 ? (
                 <div className="text-sm text-slate-400">No open vessels yet.</div>
               ) : (
                 <div>
-                  {existingVessels.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between border-b border-slate-700 py-3">
-                      <div>
-                        <div className="font-medium text-slate-100">{v.name}</div>
-                        <div className="text-sm text-slate-400">{v.port}</div>
-                      </div>
-
-                      <Link href={`/v/${v.slug ?? v.short_id}`} className="text-sm text-blue-400 hover:underline">
-                        Open
-                      </Link>
+                  {existingVessels?.map((vessel) => (
+                    <div key={vessel.id} className="border-b border-slate-700 py-3">
+                      {vessel.name}
                     </div>
                   ))}
                 </div>
