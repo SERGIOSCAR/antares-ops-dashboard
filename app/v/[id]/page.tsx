@@ -1,9 +1,10 @@
-import { supabaseServer } from "@/lib/supabase/server";
+﻿import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import CommenceButton from "@/components/commence-button";
 import ShiftForm from "@/components/shift-form";
 import StowPlanEditor from "@/components/stow-plan-editor";
 import RunningSofEditor from "@/components/running-sof-editor";
+import QuickSofButtons from "@/components/quick-sof-buttons";
 import { formatDateTime } from "@/lib/format-date";
 
 const DRAFT_META_GRADE = {
@@ -28,9 +29,9 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
 
   if (!vessel) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center">
         <h1 className="text-2xl font-bold text-red-600">Vessel Not Found</h1>
-        <p className="text-zinc-600 mt-2">The vessel link is invalid or has been removed.</p>
+        <p className="mt-2 text-zinc-600">The vessel link is invalid or has been removed.</p>
       </div>
     );
   }
@@ -134,26 +135,26 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
   const commenced = !!vessel.commenced_at;
 
   return (
-    <div className="bg-slate-900 min-h-screen">
-      <div className="mx-auto w-full max-w-7xl px-6 py-6 space-y-6">
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">{vessel.name}</h1>
-              <p className="text-sm text-zinc-600 mt-1">
-                {vessel.port} / {vessel.terminal} • {vessel.operation_type}
-              </p>
-              <p className="text-xs text-zinc-500 mt-1">
-                {vessel.holds} holds • {vessel.cargo_grades?.join(", ") || "No grades"}
-              </p>
-            </div>
+    <div className="min-h-screen bg-slate-900">
+      <div className="mx-auto w-full max-w-7xl space-y-6 px-6 py-6">
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-slate-700 bg-slate-800 p-4">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-100">{vessel.name}</h1>
+            <p className="text-sm text-slate-300">
+              {vessel.port} | {vessel.terminal} | {vessel.operation_type}
+            </p>
+            <p className="text-sm text-slate-400">
+              {vessel.holds} holds | {vessel.cargo_grades?.join(", ") || "No grades"}
+            </p>
+          </div>
+          <div>
             {!commenced && (
-              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-                Not Started
+              <span className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-medium text-white">
+                Waiting
               </span>
             )}
             {commenced && (
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
+              <span className="rounded-full bg-green-600 px-3 py-1 text-xs font-medium text-white">
                 In Progress
               </span>
             )}
@@ -161,18 +162,18 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
         </div>
 
         {!commenced && (
-          <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
-            <h2 className="text-lg font-semibold text-slate-100 mb-3">Operations Not Started</h2>
-            <p className="text-sm text-zinc-600 mb-4">
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-100">Operations Not Started</h2>
+            <p className="mb-4 text-sm text-zinc-600">
               Click &quot;Commence Operations&quot; to start logging shifts.
             </p>
             <CommenceButton vesselId={vessel.id} />
           </div>
         )}
 
-        <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-slate-100 mb-3">Running SOF</h2>
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="mb-3 text-lg font-semibold text-slate-100">Running SOF</h2>
             {isAdmin && (
               <details>
                 <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50">
@@ -194,15 +195,21 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
               </details>
             )}
           </div>
-          <p className="text-xs text-zinc-500 mb-4">
+          <p className="mb-4 text-xs text-zinc-500">
             Only admin users (vessel creation level) can edit previously logged SOF entries.
           </p>
+          {isAdmin && (
+            <QuickSofButtons
+              vesselId={vessel.id}
+              defaultShiftId={shiftOptions[shiftOptions.length - 1]?.id || ""}
+            />
+          )}
           {runningSofEvents.length === 0 ? (
             <p className="text-sm text-zinc-500">No SOF events recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-900 text-slate-300 sticky top-0 z-10">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300">
                   <tr>
                     <th className="px-3 py-2 text-left">Time</th>
                     <th className="px-3 py-2 text-left">End Time</th>
@@ -248,4 +255,3 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     </div>
   );
 }
-
