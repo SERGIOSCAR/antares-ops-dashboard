@@ -6,6 +6,7 @@ import { useState } from "react";
 
 const quickEvents = [
   "NOR Tendered",
+  "NOR Accepted",
   "Pilot On Board",
   "First Line Ashore",
   "All Fast",
@@ -13,6 +14,7 @@ const quickEvents = [
   "Completed Loading",
   "Pilot Off",
   "Last Line",
+  "Exchanged Pilots at Zona Comun and continued Navigation",
 ];
 
 function nowIsoMinute() {
@@ -71,7 +73,7 @@ export default function QuickSofButtons({ vesselId, defaultShiftId }: { vesselId
           key={event}
           onClick={() => addSOFEvent(event)}
           disabled={loading}
-          className="min-h-[44px] rounded-md bg-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 disabled:opacity-50"
+          className="min-h-[44px] touch-manipulation rounded-md bg-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 disabled:opacity-50"
         >
           {event}
         </button>

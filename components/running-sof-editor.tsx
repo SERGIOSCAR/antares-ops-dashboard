@@ -256,7 +256,7 @@ export default function RunningSofEditor({
                         className={fieldClass}
                       />
                     ) : (
-                      <span className="text-slate-100">{toInputDateTime(row.from).replace("T", " ")}</span>
+                      <span className="text-slate-400">{toInputDateTime(row.from).replace("T", " ")}</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -268,7 +268,7 @@ export default function RunningSofEditor({
                         className={fieldClass}
                       />
                     ) : (
-                      <span className="text-slate-100">{row.reason}</span>
+                      <span className="text-slate-200">{row.reason}</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -276,14 +276,14 @@ export default function RunningSofEditor({
                       {editingId === row.id ? (
                         <>
                           <button
-                            className="min-h-[44px] text-blue-400 hover:text-blue-300"
+                            className="min-h-[44px] touch-manipulation text-blue-400 hover:text-blue-300"
                             onClick={() => saveEdit(row)}
                             disabled={!!row.saving}
                           >
                             Save
                           </button>
                           <button
-                            className="min-h-[44px] text-slate-300 hover:text-slate-200"
+                            className="min-h-[44px] touch-manipulation text-slate-300 hover:text-slate-200"
                             onClick={() => setEditingId(null)}
                           >
                             Cancel
@@ -291,11 +291,14 @@ export default function RunningSofEditor({
                         </>
                       ) : (
                         <>
-                          <button className="min-h-[44px] text-blue-400 hover:text-blue-300" onClick={() => startEdit(row)}>
+                          <button
+                            className="min-h-[44px] touch-manipulation text-blue-400 hover:text-blue-300"
+                            onClick={() => startEdit(row)}
+                          >
                             Edit
                           </button>
                           <button
-                            className="min-h-[44px] text-red-400 hover:text-red-300"
+                            className="min-h-[44px] touch-manipulation text-red-400 hover:text-red-300"
                             onClick={() => deleteRow(row.id)}
                             disabled={!!row.deleting}
                           >
