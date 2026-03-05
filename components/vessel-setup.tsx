@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -13,7 +12,7 @@ type VesselListItem = {
 };
 
 export default function VesselSetup({ existingVessels }: { existingVessels: VesselListItem[] }) {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  void existingVessels;
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [port, setPort] = useState("");
@@ -27,20 +26,9 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
   const [createdVessel, setCreatedVessel] = useState<{ name: string; shortId: string; fullLink: string } | null>(null);
 
   const router = useRouter();
-  const isDark = theme === "dark";
-  const rootClass = isDark
-    ? "min-h-screen bg-slate-900 text-slate-100"
-    : "min-h-screen bg-slate-50 text-slate-900";
-  const cardClass = isDark
-    ? "rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm"
-    : "rounded-xl border border-slate-200 bg-white p-6 shadow-sm";
-  const labelClass = isDark ? "mb-1 block text-sm text-slate-300" : "mb-1 block text-sm text-slate-600";
-  const inputClass = isDark
-    ? "h-10 w-full rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500"
-    : "h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-slate-300";
-  const textareaClass = isDark
-    ? "min-h-[70px] w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500"
-    : "min-h-[70px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-slate-300";
+  const inputClass =
+    "h-10 w-full rounded-md border border-slate-600 bg-slate-900 px-3 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500";
+  const labelClass = "mb-1 block text-sm text-slate-300";
 
   const onSubmit = async () => {
     setCreating(true);
@@ -150,19 +138,10 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
         </div>
       )}
 
-      <div className={rootClass}>
+      <div className="min-h-screen bg-slate-900 text-slate-100">
         <div className="mx-auto max-w-6xl px-6 py-8">
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-xl font-semibold">ShiftReporter</h1>
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded border border-slate-600 px-3 py-1 text-sm"
-            >
-              {theme === "dark" ? "☀ Light Mode" : "🌙 Dark Mode"}
-            </button>
-          </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className={cardClass}>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold">Create Vessel</h2>
 
               {error && (
@@ -175,12 +154,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelClass}>Vessel Name</label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="MV Example"
-                      className={inputClass}
-                    />
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="MV Example" className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Operation</label>
@@ -198,12 +172,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelClass}>Port</label>
-                    <input
-                      value={port}
-                      onChange={(e) => setPort(e.target.value)}
-                      placeholder="San Lorenzo"
-                      className={inputClass}
-                    />
+                    <input value={port} onChange={(e) => setPort(e.target.value)} placeholder="San Lorenzo" className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Terminal</label>
@@ -246,7 +215,7 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
                     value={recipients}
                     onChange={(e) => setRecipients(e.target.value)}
                     placeholder="master@ship.com, ops@agency.com"
-                    className={textareaClass}
+                    className="min-h-[70px] w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-slate-500"
                   />
                 </div>
 
@@ -270,23 +239,11 @@ export default function VesselSetup({ existingVessels }: { existingVessels: Vess
               </div>
             </div>
 
-            <div className={cardClass}>
+            <div className="rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm">
               <h2 className="mb-4 text-lg font-semibold">Open Vessels</h2>
-              {existingVessels?.length ? (
-                existingVessels.map((vessel) => (
-                  <div key={vessel.id} className="flex items-center justify-between border-b border-slate-700 py-3">
-                    <div>
-                      <div className="font-medium text-slate-100">{vessel.name}</div>
-                      <div className="text-sm text-slate-400">{vessel.port}</div>
-                    </div>
-                    <Link href={`/v/${vessel.slug}`} className="text-sm text-blue-400 hover:underline">
-                      Open
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-slate-400">No vessels found.</div>
-              )}
+              <div className="text-sm text-slate-400">
+                Vessels created here will appear in the operations dashboard.
+              </div>
             </div>
           </div>
         </div>

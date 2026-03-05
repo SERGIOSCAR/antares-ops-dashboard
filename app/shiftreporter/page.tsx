@@ -15,12 +15,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { data: vessels, error } = await supabase
-    .from("vessels")
-    .select("id,name,port,slug,created_at")
-    .order("created_at", { ascending: false });
-
-  if (error) console.error("Vessel query error:", error);
-
-  return <VesselSetup existingVessels={vessels ?? []} />;
+  return <VesselSetup existingVessels={[]} />;
 }
