@@ -1,10 +1,25 @@
-﻿"use client";
+﻿/* 
+⚠️ LAYOUT LOCKED
+This board layout is finalized and must not be modified automatically.
+
+Allowed changes:
+- ETA input parsing
+- action button behavior
+- timeline API calls
+
+Do NOT change:
+- table structure
+- column order
+- column widths
+- sticky columns
+*/
+"use client";
 console.log("VESSEL BOARD V2 LOADED");
 
 import { Fragment, useMemo, useState } from "react";
 import type { Appointment, AppointmentTimelineRow, TimelineEventCode } from "@/lib/vesselmanager/types";
 import TimelinePanel from "./timeline-panel";
-import TimeEntryInput from "./time-entry-input";
+import { Clock, AlertTriangle, CheckCircle } from "lucide-react";
 
 type MilestoneCode = "ETA_OUTER_ROADS" | "EPOB" | "ETB" | "ETD";
 type ActionCode = "ETA_SERVICES" | "LINE_UP" | "DAILY_REPORT";
@@ -48,7 +63,7 @@ const slotHour: Record<string, number> = {
 function editableFromIso(value?: string | null) {
   if (!value) return "";
   const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return "";
+  if (Number.isNaN(dt.getTime())) return String(value);
   const d = String(dt.getDate()).padStart(2, "0");
   const m = dt.toLocaleString("en-US", { month: "short" }).toUpperCase();
   const h = String(dt.getHours()).padStart(2, "0");
@@ -59,7 +74,9 @@ function editableFromIso(value?: string | null) {
 function parseOperationalInput(raw: string) {
   const value = raw.trim().toUpperCase();
   const now = new Date();
-  const m = value.match(/^(\d{1,2})([A-Z]{3})\s+([0-2]?\d(?::[0-5]\d)?|EAM|AM|NOON|PM|EPM|LPM)$/);
+  const m = value.match(
+    /^(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+([0-2]?\d(?::[0-5]\d)?|EAM|AM|NOON|PM|EPM|LPM)$/,
+  );
   if (!m) {
     return { ok: false as const, error: "Use DDMMM HH, DDMMM HH:MM, DDMMM AM/PM/EAM/EPM/NOON/LPM" };
   }
@@ -72,9 +89,14 @@ function parseOperationalInput(raw: string) {
   let hour = 0;
   let minute = 0;
   let minuteProvided = false;
+  const isPeriodToken = Object.prototype.hasOwnProperty.call(slotHour, token);
+  let periodDisplay: string | null = null;
 
-  if (slotHour[token] !== undefined) {
+  if (isPeriodToken) {
+    // Maritime period mapping:
+    // AM=0900, PM=1500, NOON=1200, EAM=0700, EPM=1800, LPM=2100
     hour = slotHour[token];
+    periodDisplay = `${String(day).padStart(2, "0")}${m[2]} ${token}`;
   } else {
     const [hh, mm] = token.split(":");
     hour = Number(hh);
@@ -90,7 +112,7 @@ function parseOperationalInput(raw: string) {
   if (Number.isNaN(dt.getTime())) return { ok: false as const, error: "Invalid date" };
 
   const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}T${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}:00`;
-  return { ok: true as const, iso, minuteProvided };
+  return { ok: true as const, iso, minuteProvided, isPeriodToken, periodDisplay };
 }
 
 function timelineDisplay(item?: { eta: string; ata: string }) {
@@ -142,13 +164,23 @@ function formatQty(value?: number | null) {
   return Math.round(value).toLocaleString("en-US");
 }
 
+function actionIconNode(code: ActionCode, state: "Pending" | "Open" | "Done") {
+  void code;
+  const hour = new Date().getHours();
+  if (state === "Done") return <CheckCircle size={18} className="text-emerald-400 mx-auto" />;
+  if (state === "Pending" && hour >= 12) {
+    return <AlertTriangle size={18} className="text-amber-400 mx-auto animate-pulse" />;
+  }
+  return <Clock size={18} className="text-slate-400 mx-auto" />;
+}
+
 export default function VesselBoard({ appointments }: { appointments: Appointment[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [timelineByAppointment, setTimelineByAppointment] = useState<TimelineMap>({});
   const [loadingTimeline, setLoadingTimeline] = useState<Record<string, boolean>>({});
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
   const [savingCell, setSavingCell] = useState(false);
-  const [editingError, setEditingError] = useState("");
+  const [, setEditingError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [actionState, setActionState] = useState<ActionState>({});
 
@@ -224,7 +256,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
         [editingCell.appointmentId]: {
           ...(prev[editingCell.appointmentId] || {}),
           [editingCell.eventType]: {
-            eta: parsed.minuteProvided ? "" : parsed.iso,
+            eta: parsed.minuteProvided ? "" : parsed.isPeriodToken ? parsed.periodDisplay || parsed.iso : parsed.iso,
             ata: parsed.minuteProvided ? parsed.iso : "",
           },
         },
@@ -257,22 +289,48 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   const actionValue = (appointmentId: string, code: ActionCode) =>
     actionState[appointmentId]?.[code] || (code === "ETA_SERVICES" ? "Pending" : "Open");
 
-  const visibleRows = useMemo(() => appointments, [appointments]);
+  const visibleRows = useMemo(() => {
+    const getSortTime = (
+      timeline?: Partial<Record<TimelineEventCode, { eta: string; ata: string }>>,
+    ) =>
+      timeline?.EPOB?.eta ||
+      timeline?.EPOB?.ata ||
+      timeline?.ETB?.eta ||
+      timeline?.ETA_OUTER_ROADS?.eta ||
+      timeline?.ETD?.eta ||
+      null;
+
+    return [...appointments].sort((a, b) => {
+      const ta = getSortTime(timelineByAppointment[a.id]);
+      const tb = getSortTime(timelineByAppointment[b.id]);
+
+      if (!ta && !tb) return 0;
+      if (!ta) return 1;
+      if (!tb) return -1;
+
+      const da = new Date(ta).getTime();
+      const db = new Date(tb).getTime();
+      if (Number.isNaN(da) && Number.isNaN(db)) return 0;
+      if (Number.isNaN(da)) return 1;
+      if (Number.isNaN(db)) return -1;
+      return da - db;
+    });
+  }, [appointments, timelineByAppointment]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
       <table className="w-full table-fixed text-xs">
         <thead>
          <tr className="text-xs text-slate-400 border-b border-slate-700">
-          <th className="w-[28px]">ICON</th>
-          <th className="w-[300px] text-left px-2">VESSEL</th>
+          <th className="w-[28px]"></th>
+          <th className="w-[420px] text-left px-2">VESSEL</th>
           <th className="w-[90px] text-center">ETA_EOSP</th>
           <th className="w-[90px] text-center">EPOB</th>
           <th className="w-[90px] text-center">ETB</th>
           <th className="w-[90px] text-center">ETD</th>
-          <th className="w-[110px] text-center">ETA<br />SERVICES</th>
-          <th className="w-[100px] text-center">LINE_UP</th>
-         <th className="w-[110px] text-center">DAILY_REPORT</th>
+          <th className="w-[90px] text-center">ETA<br />SERVICES</th>
+          <th className="w-[80px] text-center">LINE_UP</th>
+         <th className="w-[90px] text-center">DAILY_REPORT</th>
         </tr>
 </thead>
         <tbody className="divide-y divide-slate-700 text-slate-200">
@@ -299,38 +357,46 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                 const display = timelineDisplay(timeline?.[eventType]);
                 return (
                   <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => startEditCell(appointment.id, eventType)}
-                      className="w-full max-w-[90px] mx-auto rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-200"
-                      title="Click to edit ETA/ATA"
-                    >
-                      {loadingTimeline[appointment.id] && !timeline ? (
-                        "..."
-                      ) : (
-                        <span className="block leading-tight">
-                          <span className="block">{display.top}</span>
-                          <span className="block text-slate-400">{display.bottom}</span>
-                        </span>
-                      )}
-                    </button>
                     {isEditing && editingCell ? (
-                      <div className="absolute left-0 top-full z-40 mt-1 w-[220px]">
-                        <TimeEntryInput
+                      <div className="flex justify-center">
+                        <input
+                          autoFocus
                           value={editingCell.value}
-                          onChange={(value) => setEditingCell({ ...editingCell, value })}
-                          onSubmit={() => {
-                            void saveCell();
+                          onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void saveCell();
+                            }
+                            if (e.key === "Escape") {
+                              setEditingCell(null);
+                              setEditingError("");
+                            }
                           }}
-                          onCancel={() => {
-                            setEditingCell(null);
-                            setEditingError("");
+                          onBlur={() => {
+                            const parsed = parseOperationalInput(editingCell.value);
+                            if (parsed.ok) void saveCell();
                           }}
-                          error={editingError}
-                          disabled={savingCell}
+                          className="w-[90px] text-center bg-slate-900 border border-slate-600 text-xs"
                         />
                       </div>
-                    ) : null}
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditCell(appointment.id, eventType)}
+                        className="w-full max-w-[90px] mx-auto rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-200"
+                        title="Click to edit ETA/ATA"
+                      >
+                        {loadingTimeline[appointment.id] && !timeline ? (
+                          "..."
+                        ) : (
+                          <span className="block leading-tight">
+                            <span className="block">{display.top}</span>
+                            <span className="block text-slate-400">{display.bottom}</span>
+                          </span>
+                        )}
+                      </button>
+                    )}
                   </div>
                 );
               };
@@ -341,7 +407,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     <td className="sticky left-0 z-20 w-[28px] bg-slate-800 px-1 py-0.5 text-center" title={trafficState}>
                       {trafficIcon(trafficState)}
                     </td>
-                    <td className="sticky left-[28px] z-20 w-[300px] bg-slate-800 px-1 py-0.5 font-medium text-slate-100">
+                    <td className="sticky left-[28px] z-20 w-[420px] bg-slate-800 px-1 py-0.5 font-medium text-slate-100">
                       <button
                         type="button"
                         onClick={() => toggleExpand(appointment.id)}
@@ -358,7 +424,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("EPOB")}</td>
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETB")}</td>
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETD")}</td>
-                    <td className="w-[110px] px-1 py-0.5">
+                    <td className="w-[90px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -366,12 +432,13 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         onKeyDown={(e) => {
                           if (e.key === "Enter") cycleAction(appointment.id, "ETA_SERVICES");
                         }}
+                        title="Send ETA Notice"
                         className="cursor-pointer rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-300"
                       >
-                        {actionValue(appointment.id, "ETA_SERVICES")}
+                        {actionIconNode("ETA_SERVICES", actionValue(appointment.id, "ETA_SERVICES"))}
                       </div>
                     </td>
-                    <td className="w-[100px] px-1 py-0.5">
+                    <td className="w-[80px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -379,12 +446,13 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         onKeyDown={(e) => {
                           if (e.key === "Enter") cycleAction(appointment.id, "LINE_UP");
                         }}
+                        title="Open Line Up"
                         className="cursor-pointer rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-300"
                       >
-                        {actionValue(appointment.id, "LINE_UP")}
+                        {actionIconNode("LINE_UP", actionValue(appointment.id, "LINE_UP"))}
                       </div>
                     </td>
-                    <td className="w-[110px] px-1 py-0.5">
+                    <td className="w-[90px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -392,9 +460,10 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         onKeyDown={(e) => {
                           if (e.key === "Enter") cycleAction(appointment.id, "DAILY_REPORT");
                         }}
+                        title="Generate Daily Report"
                         className="cursor-pointer rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-300"
                       >
-                        {actionValue(appointment.id, "DAILY_REPORT")}
+                        {actionIconNode("DAILY_REPORT", actionValue(appointment.id, "DAILY_REPORT"))}
                       </div>
                     </td>
                   </tr>
