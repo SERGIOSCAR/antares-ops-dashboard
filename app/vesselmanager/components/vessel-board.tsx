@@ -28,6 +28,7 @@ import { Clock, AlertTriangle, CheckCircle, ArrowRight, Anchor, Ship, Check, Bel
 type MilestoneCode = "ETA_OUTER_ROADS" | "EPOB" | "ETB" | "ETD";
 type ActionCode = "ETA_SERVICES" | "LINE_UP" | "DAILY_REPORT";
 type SortBasis = "EPOB" | "ETB" | "ETA_OUTER_ROADS" | "ETD";
+type TdyTomoScope = "all" | "followed";
 
 type TimelineMap = Record<string, Partial<Record<TimelineEventCode, { eta: string; ata: string }>>>;
 
@@ -279,10 +280,80 @@ function compactEventValue(timeline: Record<string, { eta: string; ata: string }
   return display.bottom ? `${display.top} ${display.bottom}` : display.top;
 }
 
+function monthIndexFromShort(month: string) {
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  return months.indexOf(month.toUpperCase());
+}
+
+function parseTimelineSourceToDate(source: string) {
+  const raw = String(source || "").trim();
+  if (!raw) return null;
+  const native = new Date(raw);
+  if (!Number.isNaN(native.getTime())) return native;
+
+  const m = raw.match(/^(\d{1,2})\s?([A-Za-z]{3})(?:\s+(.+))?$/);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = monthIndexFromShort(m[2]);
+  if (!Number.isFinite(day) || day < 1 || day > 31 || month < 0) return null;
+  const year = new Date().getFullYear();
+  return new Date(year, month, day, 0, 0, 0, 0);
+}
+
+function parseTimelineTimeSort(source: string) {
+  const raw = String(source || "").trim();
+  if (!raw) return { sort: 9999, label: "--" };
+
+  const native = new Date(raw);
+  if (!Number.isNaN(native.getTime())) {
+    const h = native.getHours();
+    const m = native.getMinutes();
+    return { sort: h * 60 + m, label: `${String(h).padStart(2, "0")}${String(m).padStart(2, "0")}hs` };
+  }
+
+  const m = raw.match(/^(\d{1,2})\s?([A-Za-z]{3})(?:\s+(.+))?$/);
+  const tail = (m?.[3] || "").trim().toUpperCase();
+  if (!tail) return { sort: 9999, label: "--" };
+
+  const hhmm = tail.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (hhmm) {
+    const h = Number(hhmm[1]);
+    const mm = Number(hhmm[2]);
+    return { sort: h * 60 + mm, label: `${String(h).padStart(2, "0")}${String(mm).padStart(2, "0")}hs` };
+  }
+
+  const hh = tail.match(/^([01]?\d|2[0-3])H$/);
+  if (hh) {
+    const h = Number(hh[1]);
+    return { sort: h * 60, label: `${String(h).padStart(2, "0")}00hs` };
+  }
+
+  const periodSort: Record<string, number> = {
+    EAM: 7 * 60,
+    AM: 9 * 60,
+    NOON: 12 * 60,
+    PM: 15 * 60,
+    EPM: 18 * 60,
+    LPM: 21 * 60,
+  };
+  if (periodSort[tail] !== undefined) {
+    return { sort: periodSort[tail], label: tail };
+  }
+
+  return { sort: 9999, label: tail };
+}
+
+function eventCodeLabel(code: TimelineEventCode) {
+  if (code === "ETA_OUTER_ROADS") return "ETA EOSP";
+  return code.replaceAll("_", " ");
+}
+
 export default function VesselBoard({ appointments }: { appointments: Appointment[] }) {
   const router = useRouter();
   const [view, setView] = useState<View>("board");
   const [sortBasis, setSortBasis] = useState<SortBasis>("EPOB");
+  const [tdyTomoScope, setTdyTomoScope] = useState<TdyTomoScope>("all");
+  const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const currentUser = null;
@@ -590,9 +661,10 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
         status,
         etd_ata: timeline?.ETD?.ata || null,
         epob_ata: timeline?.EPOB?.ata || null,
+        followed_by_user: !!followedIds[appointment.id],
       };
     });
-  }, [appointments, timelineByAppointment]);
+  }, [appointments, timelineByAppointment, followedIds]);
 
   const counts = useMemo(
     () => ({
@@ -602,8 +674,12 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       inport: filterAppointments("inport", appointmentsForViews, currentUser).length,
       active: filterAppointments("active", appointmentsForViews, currentUser).length,
       sailed: filterAppointments("sailed", appointmentsForViews, currentUser).length,
+      tdytomo:
+        tdyTomoScope === "followed"
+          ? filterAppointments("followed", appointmentsForViews, currentUser).length
+          : filterAppointments("active", appointmentsForViews, currentUser).length,
     }),
-    [appointmentsForViews, currentUser],
+    [appointmentsForViews, currentUser, tdyTomoScope],
   );
 
   useEffect(() => {
@@ -611,14 +687,18 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     try {
       const raw = window.localStorage.getItem("vesselmanager:board-settings");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { defaultView?: View; sortBasis?: SortBasis };
-      const validViews: View[] = ["board", "my", "followed", "inport", "active", "sailed"];
+      const parsed = JSON.parse(raw) as { defaultView?: View; sortBasis?: SortBasis; tdyTomoScope?: TdyTomoScope };
+      const validViews: View[] = ["board", "my", "followed", "inport", "active", "sailed", "tdytomo"];
       const validSort: SortBasis[] = ["EPOB", "ETB", "ETA_OUTER_ROADS", "ETD"];
+      const validScope: TdyTomoScope[] = ["all", "followed"];
       if (parsed.defaultView && validViews.includes(parsed.defaultView)) {
         setView(parsed.defaultView);
       }
       if (parsed.sortBasis && validSort.includes(parsed.sortBasis)) {
         setSortBasis(parsed.sortBasis);
+      }
+      if (parsed.tdyTomoScope && validScope.includes(parsed.tdyTomoScope)) {
+        setTdyTomoScope(parsed.tdyTomoScope);
       }
     } catch {
       // ignore invalid local settings payload
@@ -634,9 +714,27 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       JSON.stringify({
         defaultView: view,
         sortBasis,
+        tdyTomoScope,
       }),
     );
-  }, [view, sortBasis, settingsLoaded]);
+  }, [view, sortBasis, tdyTomoScope, settingsLoaded]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("vesselmanager:followed-ids");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      setFollowedIds(parsed || {});
+    } catch {
+      // ignore invalid localStorage payload
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("vesselmanager:followed-ids", JSON.stringify(followedIds));
+  }, [followedIds]);
 
   const visibleRows = useMemo(() => {
     const filtered = filterAppointments(view, appointmentsForViews, currentUser);
@@ -701,11 +799,72 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     return { operating, inPort, enRoute, other };
   }, [appointmentsForViews, currentUser, timelineByAppointment]);
 
+  const tdyTomoRows = useMemo(() => {
+    const base =
+      tdyTomoScope === "followed"
+        ? filterAppointments("followed", appointmentsForViews, currentUser)
+        : filterAppointments("active", appointmentsForViews, currentUser);
+    return base;
+  }, [appointmentsForViews, currentUser, tdyTomoScope]);
+
+  const tdyTomoEvents = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const afterTomorrow = new Date(tomorrow);
+    afterTomorrow.setDate(afterTomorrow.getDate() + 1);
+    const codes: TimelineEventCode[] = [
+      "ETA_OUTER_ROADS",
+      "EPOB",
+      "ETA_RIVER",
+      "ETB",
+      "COMMENCE_OPS",
+      "COMPLETE_OPS",
+      "ETD",
+    ];
+
+    const todayRows: Array<{ sort: number; text: string }> = [];
+    const tomorrowRows: Array<{ sort: number; text: string }> = [];
+
+    tdyTomoRows.forEach((appointment) => {
+      const timeline = timelineByAppointment[appointment.id];
+      if (!timeline) return;
+      codes.forEach((code) => {
+        const row = timeline[code];
+        const source = row?.ata || row?.eta;
+        if (!source) return;
+        const d = parseTimelineSourceToDate(source);
+        if (!d) return;
+        const { sort, label } = parseTimelineTimeSort(source);
+        const line = `${label} ${eventCodeLabel(code)} - ${appointment.vessel_name}`;
+        if (d >= today && d < tomorrow) todayRows.push({ sort, text: line });
+        if (d >= tomorrow && d < afterTomorrow) tomorrowRows.push({ sort, text: line });
+      });
+    });
+
+    todayRows.sort((a, b) => a.sort - b.sort || a.text.localeCompare(b.text));
+    tomorrowRows.sort((a, b) => a.sort - b.sort || a.text.localeCompare(b.text));
+    return {
+      todayLabel: today.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      tomorrowLabel: tomorrow.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      todayRows,
+      tomorrowRows,
+    };
+  }, [tdyTomoRows, timelineByAppointment]);
+
   useEffect(() => {
     visibleRows.forEach((appt) => {
       void ensureTimelineLoaded(appt.id);
     });
   }, [visibleRows]);
+
+  const toggleFollow = (appointmentId: string) => {
+    setFollowedIds((prev) => ({
+      ...prev,
+      [appointmentId]: !prev[appointmentId],
+    }));
+  };
 
   return (
     <div className="space-y-2">
@@ -754,11 +913,52 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                   <option value="ETD">ETD</option>
                 </select>
               </label>
+              <label className="mt-2 block text-slate-300">
+                Tdy &amp; Tomo scope
+                <select
+                  className="mt-1 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-slate-100"
+                  value={tdyTomoScope}
+                  onChange={(e) => setTdyTomoScope(e.target.value as TdyTomoScope)}
+                >
+                  <option value="all">All active vessels</option>
+                  <option value="followed">Followed vessels only</option>
+                </select>
+              </label>
               <div className="mt-2 text-[11px] text-slate-400">Saved in this browser only.</div>
             </div>
           ) : null}
         </div>
       </div>
+      {view === "tdytomo" ? (
+        <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs">
+          <div className="space-y-3 font-mono text-slate-200">
+            <div>
+              <div className="mb-1 text-slate-300">Tdy ({tdyTomoEvents.todayLabel})</div>
+              {tdyTomoEvents.todayRows.length === 0 ? (
+                <div className="text-slate-500">- none</div>
+              ) : (
+                <div className="space-y-1">
+                  {tdyTomoEvents.todayRows.map((row, idx) => (
+                    <div key={`tdy-${idx}`}>{row.text}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="mb-1 text-slate-300">Tomorrow ({tdyTomoEvents.tomorrowLabel})</div>
+              {tdyTomoEvents.tomorrowRows.length === 0 ? (
+                <div className="text-slate-500">- none</div>
+              ) : (
+                <div className="space-y-1">
+                  {tdyTomoEvents.tomorrowRows.map((row, idx) => (
+                    <div key={`tom-${idx}`}>{row.text}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {view === "board" ? (
         <div className="rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs">
           <div className="space-y-3 font-mono text-slate-200">
@@ -856,7 +1056,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
           </div>
         </div>
       ) : null}
-      {view !== "board" ? (
+      {view !== "board" && view !== "tdytomo" ? (
       <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800">
         <table className="w-full table-fixed text-xs">
         <thead>
@@ -867,16 +1067,17 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
           <th className="w-[90px] text-center">EPOB</th>
           <th className="w-[90px] text-center">ETB</th>
           <th className="w-[90px] text-center">ETD</th>
-         <th className="w-[90px] text-center">ETA<br />SERVICES</th>
-          <th className="w-[80px] text-center">LINE UP</th>
-         <th className="w-[90px] text-center">DAILY REPORT</th>
+         <th className="w-[80px] text-center">ETA<br />SERVICES</th>
+          <th className="w-[70px] text-center">LINE UP</th>
+         <th className="w-[80px] text-center">DAILY REPORT</th>
+         <th className="w-[26px] text-center"></th>
          <th className="w-[80px] text-center">EDIT</th>
         </tr>
 </thead>
         <tbody className="divide-y divide-slate-700 text-slate-200">
           {visibleRows.length === 0 ? (
             <tr>
-              <td className="px-2 py-3 text-slate-300" colSpan={10}>
+              <td className="px-2 py-3 text-slate-300" colSpan={11}>
                 No appointments found.
               </td>
             </tr>
@@ -968,7 +1169,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("EPOB")}</td>
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETB")}</td>
                     <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETD")}</td>
-                    <td className="w-[90px] px-1 py-0.5">
+                    <td className="w-[80px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -982,7 +1183,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {renderActionIcon("ETA_SERVICES", actionValue(appointment.id, "ETA_SERVICES"), appointment)}
                       </div>
                     </td>
-                    <td className="w-[80px] px-1 py-0.5">
+                    <td className="w-[70px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -996,7 +1197,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {renderActionIcon("LINE_UP", actionValue(appointment.id, "LINE_UP"), appointment)}
                       </div>
                     </td>
-                    <td className="w-[90px] px-1 py-0.5">
+                    <td className="w-[80px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -1009,6 +1210,16 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                       >
                         {renderActionIcon("DAILY_REPORT", actionValue(appointment.id, "DAILY_REPORT"), appointment)}
                       </div>
+                    </td>
+                    <td className="w-[26px] px-1 py-0.5 text-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleFollow(appointment.id)}
+                        className={`text-[12px] leading-none ${followedIds[appointment.id] ? "text-amber-300" : "text-slate-500 hover:text-slate-300"}`}
+                        title={followedIds[appointment.id] ? "Unfollow" : "Follow"}
+                      >
+                        {followedIds[appointment.id] ? "★" : "☆"}
+                      </button>
                     </td>
                     <td className="w-[80px] px-1 py-0.5">
                       <button
@@ -1025,14 +1236,14 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                   </tr>
                   {saveError && editingCell?.appointmentId === appointment.id ? (
                     <tr className="bg-slate-900/70">
-                      <td colSpan={10} className="px-2 py-1 text-[11px] text-red-400">
+                      <td colSpan={11} className="px-2 py-1 text-[11px] text-red-400">
                         {saveError}
                       </td>
                     </tr>
                   ) : null}
                   {isExpanded && (
                     <tr className="bg-slate-900/80">
-                      <td colSpan={10} className="px-1 py-1">
+                      <td colSpan={11} className="px-1 py-1">
                         <TimelinePanel
                           appointmentId={appointment.id}
                           initialOtherAppointmentsAgents={

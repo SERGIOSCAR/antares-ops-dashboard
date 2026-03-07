@@ -39,5 +39,9 @@ export function filterAppointments(
     return withFlags.filter((a) => !!a.etd_ata || a.status === "CLOSED" || a.status === "SAILING");
   }
 
+  if (view === "tdytomo") {
+    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILING");
+  }
+
   return withFlags;
 }
