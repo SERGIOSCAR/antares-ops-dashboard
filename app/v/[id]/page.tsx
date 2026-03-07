@@ -4,7 +4,6 @@ import CommenceButton from "@/components/commence-button";
 import ShiftForm from "@/components/shift-form";
 import StowPlanEditor from "@/components/stow-plan-editor";
 import RunningSofEditor from "@/components/running-sof-editor";
-import QuickSofButtons from "@/components/quick-sof-buttons";
 import { formatDateTime } from "@/lib/format-date";
 
 const DRAFT_META_GRADE = {
@@ -147,6 +146,15 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
               {vessel.holds} holds | {vessel.cargo_grades?.join(", ") || "No grades"}
             </p>
           </div>
+          <div className="mx-4 flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2">
+            <img
+              src="https://antaresshipping.com/wp-content/uploads/2023/12/Antares-Ship-Agent.webp"
+              alt="Antares Ship Agents"
+              className="h-8 w-auto select-none opacity-90"
+              loading="lazy"
+            />
+            <span className="text-xs uppercase tracking-wide text-slate-300">Ops Platform</span>
+          </div>
           <div>
             {!commenced && (
               <span className="rounded-full bg-yellow-500 px-3 py-1 text-xs font-medium text-white">
@@ -174,38 +182,26 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="mb-3 text-lg font-semibold text-slate-100">Running SOF</h2>
-            {isAdmin && (
-              <details>
-                <summary className="cursor-pointer rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50">
-                  Edit Running SOF
-                </summary>
-                <div className="mt-3">
-                  <RunningSofEditor
-                    vesselId={vessel.id}
-                    events={runningShiftEvents.map((e) => ({
-                      id: e.id,
-                      shiftId: e.shiftId,
-                      from: e.from,
-                      to: e.to,
-                      reason: e.reason,
-                    }))}
-                    shiftOptions={shiftOptions}
-                  />
-                </div>
-              </details>
-            )}
+            <div className="flex items-center gap-2">
+              <a
+                href="#running-sof-editor"
+                className="rounded border border-blue-500/60 bg-blue-600/20 px-3 py-1 text-sm text-blue-200 hover:bg-blue-600/30"
+              >
+                + Add Event
+              </a>
+              <a
+                href="#running-sof-editor"
+                className="rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700"
+              >
+                Edit SOF
+              </a>
+            </div>
           </div>
-          <p className="mb-4 text-xs text-zinc-500">
-            Only admin users (vessel creation level) can edit previously logged SOF entries.
+          <p className="mb-4 text-xs text-slate-400">
+            Edit or add events from the controls below.
           </p>
-          {isAdmin && (
-            <QuickSofButtons
-              vesselId={vessel.id}
-              defaultShiftId={shiftOptions[shiftOptions.length - 1]?.id || ""}
-            />
-          )}
           {runningSofEvents.length === 0 ? (
-            <p className="text-sm text-zinc-500">No SOF events recorded yet.</p>
+            <p className="text-sm text-slate-400">No SOF events recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -214,6 +210,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
                     <th className="px-3 py-2 text-left">Time</th>
                     <th className="px-3 py-2 text-left">End Time</th>
                     <th className="px-3 py-2 text-left">Event</th>
+                    <th className="px-3 py-2 text-left">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -222,12 +219,48 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
                       <td className="px-3 py-2">{formatDateTime(event.from)}</td>
                       <td className="px-3 py-2">{formatDateTime(event.to)}</td>
                       <td className="px-3 py-2">{event.reason}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <a
+                            href="#running-sof-editor"
+                            className="text-blue-400 hover:text-blue-300 hover:underline"
+                          >
+                            Edit
+                          </a>
+                          <a
+                            href="#running-sof-editor"
+                            className="text-emerald-400 hover:text-emerald-300 hover:underline"
+                          >
+                            Add
+                          </a>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+          <div id="running-sof-editor">
+            <details open>
+              <summary className="mt-3 cursor-pointer rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700">
+                Edit Running SOF
+              </summary>
+              <div className="mt-3">
+                <RunningSofEditor
+                  vesselId={vessel.id}
+                  events={runningShiftEvents.map((e) => ({
+                    id: e.id,
+                    shiftId: e.shiftId,
+                    from: e.from,
+                    to: e.to,
+                    reason: e.reason,
+                  }))}
+                  shiftOptions={shiftOptions}
+                />
+              </div>
+            </details>
+          </div>
         </div>
 
         {commenced && (

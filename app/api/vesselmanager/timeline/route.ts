@@ -3,6 +3,30 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { deriveAppointmentStatus } from "@/lib/vesselmanager/status";
 import type { AppointmentTimelineRow, CreateTimelineInput } from "@/lib/vesselmanager/types";
 
+function isMissingOperationalColumns(message?: string) {
+  if (!message) return false;
+  return message.includes("event_date") || message.includes("event_time_text");
+}
+
+function deriveOperationalFields(body: CreateTimelineInput) {
+  if (body.event_date !== undefined || body.event_time_text !== undefined) {
+    return {
+      event_date: body.event_date ?? null,
+      event_time_text: body.event_time_text ?? null,
+    };
+  }
+
+  const source = body.ata ?? body.eta ?? null;
+  if (!source) return { event_date: null, event_time_text: null };
+
+  const dt = new Date(source);
+  if (Number.isNaN(dt.getTime())) return { event_date: null, event_time_text: null };
+
+  const event_date = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  const event_time_text = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+  return { event_date, event_time_text };
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as CreateTimelineInput;
@@ -28,31 +52,73 @@ export async function POST(req: Request) {
       event_type: body.event_type,
       eta: body.eta ?? null,
       ata: body.ata ?? null,
+      ...deriveOperationalFields(body),
     };
 
-    const timelineMutation = existing?.id
+    const withOperationalMutation = existing?.id
       ? supabase
           .from("appointment_timeline")
-          .update({ eta: payload.eta, ata: payload.ata })
+          .update({
+            eta: payload.eta,
+            ata: payload.ata,
+            event_date: payload.event_date,
+            event_time_text: payload.event_time_text,
+          })
           .eq("id", existing.id)
-          .select("id,appointment_id,event_type,eta,ata")
+          .select("id,appointment_id,event_type,eta,ata,event_date,event_time_text")
           .single()
       : supabase
           .from("appointment_timeline")
           .insert(payload)
-          .select("id,appointment_id,event_type,eta,ata")
+          .select("id,appointment_id,event_type,eta,ata,event_date,event_time_text")
           .single();
 
-    const { data, error } = await timelineMutation;
+    let { data, error } = await withOperationalMutation;
+
+    if (error && isMissingOperationalColumns(error.message)) {
+      const legacyEta = payload.eta ?? (payload.ata ? null : payload.event_time_text ?? null);
+      const legacyAta = payload.ata ?? null;
+      const legacyMutation = existing?.id
+        ? supabase
+            .from("appointment_timeline")
+            .update({ eta: legacyEta, ata: legacyAta })
+            .eq("id", existing.id)
+            .select("id,appointment_id,event_type,eta,ata")
+            .single()
+        : supabase
+            .from("appointment_timeline")
+            .insert({
+              appointment_id: payload.appointment_id,
+              event_type: payload.event_type,
+              eta: legacyEta,
+              ata: legacyAta,
+            })
+            .select("id,appointment_id,event_type,eta,ata")
+            .single();
+
+      ({ data, error } = await legacyMutation);
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const { data: timelineRowsRaw, error: timelineError } = await supabase
+    const withOperationalTimeline = await supabase
       .from("appointment_timeline")
-      .select("id,appointment_id,event_type,eta,ata")
+      .select("id,appointment_id,event_type,eta,ata,event_date,event_time_text")
       .eq("appointment_id", body.appointment_id);
+
+    let timelineRowsRaw = withOperationalTimeline.data;
+    let timelineError = withOperationalTimeline.error;
+
+    if (timelineError && isMissingOperationalColumns(timelineError.message)) {
+      const legacyTimeline = await supabase
+        .from("appointment_timeline")
+        .select("id,appointment_id,event_type,eta,ata")
+        .eq("appointment_id", body.appointment_id);
+      timelineRowsRaw = legacyTimeline.data;
+      timelineError = legacyTimeline.error;
+    }
 
     if (timelineError) {
       return NextResponse.json({ error: timelineError.message }, { status: 500 });
