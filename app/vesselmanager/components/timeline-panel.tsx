@@ -6,6 +6,7 @@ import { parseOperationalInput, toOperationalIso } from "@/lib/vesselmanager/par
 
 type AppointmentDetail = {
   id: string;
+  charterer_agent?: string | null;
   port?: string | null;
   other_agents?: string | null;
   other_agents_role?: string | null;
@@ -24,16 +25,20 @@ type RowState = Record<string, { eta: string; ata: string }>;
 
 const row1Events: Array<{ code: EventCode; label: string }> = [
   { code: "ETA_RIVER", label: "ETA_RIVER" },
-  { code: "COMMENCE_OPS", label: "COMMENCE_OPS" },
-  { code: "COMPLETE_OPS", label: "COMPLETE_OPS" },
+  { code: "ETHI", label: "ETHI" },
+  { code: "COMMENCE_OPS", label: "ET_COMMENCE_OPS" },
+  { code: "COMPLETE_OPS", label: "ET_COMPLETE_OPS" },
   { code: "ETA_BUNKER", label: "ETA_BUNKER" },
+  { code: "ET_COSP", label: "ET_COSP" },
 ];
 
 const defaultRows: RowState = {
   ETA_RIVER: { eta: "", ata: "" },
+  ETHI: { eta: "", ata: "" },
   COMMENCE_OPS: { eta: "", ata: "" },
   COMPLETE_OPS: { eta: "", ata: "" },
   ETA_BUNKER: { eta: "", ata: "" },
+  ET_COSP: { eta: "", ata: "" },
 };
 
 function compactFromIso(value?: string | null) {
@@ -118,10 +123,12 @@ function periodInputToIso(parsed: {
 
 export default function TimelinePanel({
   appointmentId,
-  initialOtherAppointmentsAgents = "-",
+  initialChartererAgent = "-",
+  initialOtherAgents = "-",
 }: {
   appointmentId: string;
-  initialOtherAppointmentsAgents?: string;
+  initialChartererAgent?: string;
+  initialOtherAgents?: string;
 }) {
   const [loading, setLoading] = useState(true);
   const [savingCode, setSavingCode] = useState<string | null>(null);
@@ -130,7 +137,8 @@ export default function TimelinePanel({
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [editingError, setEditingError] = useState("");
-  const [otherAppointmentsAgents, setOtherAppointmentsAgents] = useState(initialOtherAppointmentsAgents);
+  const [chartererAgentText, setChartererAgentText] = useState(initialChartererAgent);
+  const [otherAgentsText, setOtherAgentsText] = useState(initialOtherAgents);
 
   useEffect(() => {
     let active = true;
@@ -162,11 +170,15 @@ export default function TimelinePanel({
           next[item.event_type] = { eta: item.eta || "", ata: item.ata || "" };
         });
         setRows(next);
-        setOtherAppointmentsAgents(
-          json.data?.appointment?.other_agents?.trim() ||
-          json.data?.appointment?.other_agents_role?.trim() ||
-          initialOtherAppointmentsAgents ||
-          "-",
+        setChartererAgentText(json.data?.appointment?.charterer_agent?.trim() || initialChartererAgent || "-");
+        const fetchedOtherAgents = [
+          json.data?.appointment?.other_agents?.trim() || "",
+          json.data?.appointment?.other_agents_role?.trim() || "",
+        ]
+          .filter((x) => x && x !== "-")
+          .join(" | ");
+        setOtherAgentsText(
+          fetchedOtherAgents || initialOtherAgents || "-",
         );
 
       } catch (e: unknown) {
@@ -180,7 +192,20 @@ export default function TimelinePanel({
     return () => {
       active = false;
     };
-  }, [appointmentId, initialOtherAppointmentsAgents]);
+  }, [appointmentId, initialChartererAgent, initialOtherAgents]);
+
+  const labelFor = (code: EventCode, row?: { eta: string; ata: string }) => {
+    const source = row?.ata || row?.eta || "";
+    const dt = source ? new Date(source) : null;
+    const completedPast = !!row?.ata && dt && !Number.isNaN(dt.getTime()) && dt.getTime() <= Date.now();
+    if (code === "ETA_RIVER") return completedPast ? "ARRIVED UPRIVER" : "ETA UPRIVER";
+    if (code === "ETHI") return completedPast ? "HOLDS INSPECTED" : "ETHI";
+    if (code === "COMMENCE_OPS") return completedPast ? "COMMENCED OPS" : "ET-COMMENCE OPS";
+    if (code === "COMPLETE_OPS") return completedPast ? "COMPLETED OPS" : "ET-COMPLETE OPS";
+    if (code === "ETA_BUNKER") return completedPast ? "ARRIVED BUNKER ZONE" : "ETA BUNKER";
+    if (code === "ET_COSP") return completedPast ? "COMMENCED SEA PASSAGE" : "ET-COSP";
+    return String(code).replaceAll("_", " ");
+  };
 
   const saveEvent = async (eventCode: string, value: string, target: "eta" | "ata") => {
     setSavingCode(eventCode);
@@ -308,11 +333,11 @@ export default function TimelinePanel({
     <div className="space-y-1 text-xs text-slate-200">
       {error ? <div className="text-red-400">{error}</div> : null}
 
-      <div className="grid grid-cols-6 gap-1">
+      <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr)) minmax(0, 1.6fr)" }}>
         {row1Events.map((event) => {
           const current = rows[event.code];
           const displayValue = compactFromIso(current?.ata || current?.eta);
-          const label = event.code === "ETA_RIVER" ? "ETA UPRIVER" : event.label.replaceAll("_", " ");
+          const label = labelFor(event.code, current);
           return (
             <div key={event.code} className="border border-slate-700 bg-slate-900 px-2 py-1">
               <div className="text-[11px] text-slate-300">{label}</div>
@@ -359,10 +384,16 @@ export default function TimelinePanel({
             </div>
           );
         })}
-        <div className="col-span-2 border border-slate-700 bg-slate-900 px-2 py-1">
-          <div className="text-[11px] text-slate-300">OTHER APPOINTMENTS &amp; AGENTS</div>
-          <div className="mt-1 truncate text-slate-100" title={otherAppointmentsAgents}>
-            {otherAppointmentsAgents}
+        <div className="border border-slate-700 bg-slate-900 px-2 py-1">
+          <div className="text-[11px] text-slate-300">CHARTERER&apos;S AGENT</div>
+          <div className="mt-1 truncate text-slate-100" title={chartererAgentText}>
+            {chartererAgentText || "-"}
+          </div>
+        </div>
+        <div className="border border-slate-700 bg-slate-900 px-2 py-1">
+          <div className="text-[11px] text-slate-300">OTHER AGENTS</div>
+          <div className="mt-1 truncate text-slate-100" title={otherAgentsText}>
+            {otherAgentsText || "-"}
           </div>
         </div>
       </div>

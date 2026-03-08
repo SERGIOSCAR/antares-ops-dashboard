@@ -23,7 +23,7 @@ import { parseOperationalInput, toOperationalIso } from "@/lib/vesselmanager/par
 import { filterAppointments } from "@/lib/vesselmanager/viewFilter";
 import TimelinePanel from "./timeline-panel";
 import ViewSelector, { type View } from "./ViewSelector";
-import { Clock, AlertTriangle, CheckCircle, ArrowRight, Anchor, Ship, Check, BellOff } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, ArrowRight, Anchor, Ship, Check, BellOff, CircleParking, CircleCheckBig } from "lucide-react";
 
 type MilestoneCode = "ETA_OUTER_ROADS" | "EPOB" | "ETB" | "ETD";
 type ActionCode = "ETA_SERVICES" | "LINE_UP" | "DAILY_REPORT";
@@ -174,33 +174,36 @@ function deriveTrafficState(
   if (!timeline) return "";
   const hasAta = (code: TimelineEventCode) => !!timeline[code]?.ata;
   const hasAny = (code: TimelineEventCode) => !!timeline[code]?.eta || !!timeline[code]?.ata;
-  if (hasAta("ETD")) return "CLOSED";
+  if (hasAta("ETD")) return "SAILED";
   if (hasAta("ETB")) return "ALONGSIDE";
-  if (hasAta("EPOB")) return "AT_ROADS";
-  if (hasAny("ETA_OUTER_ROADS")) return "EN_ROUTE";
-  if (fallback === "SAILING") return "SAILING";
+  if (hasAta("ETA_RIVER")) return "IN PORT";
+  if (hasAta("EPOB")) return "ANCHORED OUTER ROADS";
+  if (hasAny("ETA_OUTER_ROADS")) return "EN ROUTE";
+  if (fallback === "CLOSED") return "CLOSED";
+  if (fallback === "SAILED") return "SAILED";
   return "";
 }
 
 function trafficIcon(state: string) {
-  if (state === "EN_ROUTE") return <ArrowRight size={14} className="text-sky-400" />;
-  if (state === "AT_ROADS") return <Anchor size={14} className="text-amber-400" />;
-  if (state === "ALONGSIDE") {
-    return (
-      <span className="flex flex-col items-center">
-        <Anchor size={12} className="text-sky-400" />
-        <Anchor size={12} className="-mt-1 text-sky-400" />
-      </span>
-    );
-  }
-  if (state === "SAILING") return <Ship size={14} className="text-purple-400" />;
-  if (state === "CLOSED") return <Check size={14} className="text-slate-400" />;
+  if (state === "EN ROUTE") return <ArrowRight size={14} className="text-sky-400" />;
+  if (state === "ANCHORED OUTER ROADS") return <Anchor size={14} className="text-amber-400" />;
+  if (state === "IN PORT") return <CircleParking size={14} className="text-indigo-400" />;
+  if (state === "ALONGSIDE") return <Ship size={14} className="text-cyan-400" />;
+  if (state === "SAILED") return <Check size={14} className="text-slate-300" />;
+  if (state === "CLOSED") return <CircleCheckBig size={14} className="text-emerald-400" />;
   return null;
 }
 
 function formatQty(value?: number | null) {
   if (value === null || value === undefined) return "-";
   return Math.round(value).toLocaleString("en-US");
+}
+
+function formatQtyK(value?: number | null) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return "";
+  const k = Number(value) / 1000;
+  if (Number.isInteger(k)) return `${k}K`;
+  return `${k.toFixed(1).replace(".", ",")}K`;
 }
 
 function renderActionIcon(
@@ -267,10 +270,12 @@ function statusFromTrafficState(
   fallback: Appointment["status"],
   trafficState: string,
 ): Appointment["status"] {
-  if (trafficState === "CLOSED") return "SAILING";
+  if (trafficState === "EN ROUTE") return "EN ROUTE";
+  if (trafficState === "ANCHORED OUTER ROADS") return "ANCHORED OUTER ROADS";
+  if (trafficState === "IN PORT") return "IN PORT";
   if (trafficState === "ALONGSIDE") return "ALONGSIDE";
-  if (trafficState === "AT_ROADS") return "OUTER_ROADS";
-  if (trafficState === "EN_ROUTE") return "EN_ROUTE";
+  if (trafficState === "SAILED") return "SAILED";
+  if (trafficState === "CLOSED") return "CLOSED";
   return fallback;
 }
 
@@ -787,9 +792,9 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       const state = deriveTrafficState(appointment.status, timeline);
       if (state === "ALONGSIDE") {
         operating.push(appointment);
-      } else if (state === "AT_ROADS") {
+      } else if (state === "IN PORT" || state === "ANCHORED OUTER ROADS") {
         inPort.push(appointment);
-      } else if (state === "EN_ROUTE") {
+      } else if (state === "EN ROUTE") {
         enRoute.push(appointment);
       } else {
         other.push(appointment);
@@ -818,9 +823,11 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       "ETA_OUTER_ROADS",
       "EPOB",
       "ETA_RIVER",
+      "ETHI",
       "ETB",
       "COMMENCE_OPS",
       "COMPLETE_OPS",
+      "ET_COSP",
       "ETD",
     ];
 
@@ -880,7 +887,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
             className="rounded-md border border-amber-500/80 bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/25"
             onClick={() => setSettingsOpen((prev) => !prev)}
           >
-            Settings
+            Personal Preferences
           </button>
           {settingsOpen ? (
             <div className="absolute right-0 z-30 mt-1 w-72 rounded-md border border-slate-700 bg-slate-900 p-3 text-xs shadow-lg">
@@ -1061,17 +1068,17 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
         <table className="w-full table-fixed text-xs">
         <thead>
          <tr className="text-xs text-slate-400 border-b border-slate-700">
-          <th className="w-[28px]"></th>
+          <th className="w-[24px]"></th>
           <th className="w-[420px] text-left px-2">VESSEL</th>
-          <th className="w-[90px] text-center">ETA EOSP</th>
-          <th className="w-[90px] text-center">EPOB</th>
-          <th className="w-[90px] text-center">ETB</th>
-          <th className="w-[90px] text-center">ETD</th>
-         <th className="w-[80px] text-center">ETA<br />SERVICES</th>
-          <th className="w-[70px] text-center">LINE UP</th>
-         <th className="w-[80px] text-center">DAILY REPORT</th>
+          <th className="w-[82px] text-center">ETA EOSP</th>
+          <th className="w-[82px] text-center">EPOB</th>
+          <th className="w-[82px] text-center">ETB</th>
+          <th className="w-[82px] text-center">ETD</th>
+         <th className="w-[72px] text-center">ETA<br />SERVICES</th>
+          <th className="w-[64px] text-center">LINE UP</th>
+         <th className="w-[72px] text-center">DAILY REPORT</th>
          <th className="w-[26px] text-center"></th>
-         <th className="w-[80px] text-center">EDIT</th>
+         <th className="w-[68px] text-center">EDIT</th>
         </tr>
 </thead>
         <tbody className="divide-y divide-slate-700 text-slate-200">
@@ -1086,12 +1093,22 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
               const isExpanded = expandedId === appointment.id;
               const timeline = timelineByAppointment[appointment.id];
               const trafficState = deriveTrafficState(appointment.status, timeline);
-              const narrative =
-                `${appointment.port ?? ""} – ${appointment.terminal ?? ""} | ` +
-                `${operationAbbrev(appointment.cargo_operation)} – ${appointment.cargo_grade ?? ""} – ${appointment.cargo_qty ?? ""} | ` +
-                `Appointed by: ${appointment.appointed_by ?? ""} as ${appointment.role ?? ""}`;
+              const portTerminal = [appointment.port, appointment.terminal].filter(Boolean).join(" - ");
+              const cargoOp = operationAbbrev(appointment.cargo_operation);
+              const cargoQty = formatQtyK(appointment.cargo_qty);
+              const cargoSpec = [cargoOp, appointment.cargo_grade ?? "", cargoQty].filter(Boolean).join(" ");
+              const appointedByText = appointment.appointed_by
+                ? `Appntd by ${appointment.appointed_by}${appointment.role ? ` as ${appointment.role}` : ""}`
+                : appointment.role
+                  ? `Appntd as ${appointment.role}`
+                  : "";
+              const narrative = [portTerminal, cargoSpec, appointedByText].filter(Boolean).join(" | ");
               const shiftReportLink =
                 appointment.shiftreporter_link?.trim() || `/shiftreporter?appointment_id=${appointment.id}`;
+              const initialChartererAgent = appointment.charterer_agent?.trim() || "-";
+              const initialOtherAgents = [appointment.other_agents?.trim() || "", appointment.other_agents_role?.trim() || ""]
+                .filter(Boolean)
+                .join(" | ") || "-";
 
               const milestoneCell = (eventType: MilestoneCode) => {
                 const isEditing =
@@ -1122,14 +1139,14 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                               void saveCell();
                             }
                           }}
-                          className="w-[90px] text-center bg-slate-900 border border-slate-600 text-xs"
+                          className="w-[82px] text-center bg-slate-900 border border-slate-600 text-xs"
                         />
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => startEditCell(appointment.id, eventType)}
-                        className="w-full max-w-[90px] mx-auto rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-200"
+                        className="w-full max-w-[82px] mx-auto rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-200"
                         title="Click to edit ETA/ATA"
                       >
                         {loadingTimeline[appointment.id] && !timeline ? (
@@ -1149,10 +1166,10 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
               return (
                 <Fragment key={appointment.id}>
                   <tr className="bg-slate-800">
-                    <td className="sticky left-0 z-20 w-[28px] bg-slate-800 px-1 py-0.5 text-center" title={trafficState}>
+                    <td className="sticky left-0 z-20 w-[24px] bg-slate-800 px-1 py-0.5 text-center" title={trafficState}>
                       {trafficIcon(trafficState)}
                     </td>
-                    <td className="sticky left-[28px] z-20 w-[420px] bg-slate-800 px-1 py-0.5 font-medium text-slate-100">
+                    <td className="sticky left-[24px] z-20 w-[420px] bg-slate-800 px-1 py-0.5 font-medium text-slate-100">
                       <button
                         type="button"
                         onClick={() => toggleExpand(appointment.id)}
@@ -1165,11 +1182,11 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {narrative}
                       </div>
                     </td>
-                    <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETA_OUTER_ROADS")}</td>
-                    <td className="w-[90px] px-1 py-0.5">{milestoneCell("EPOB")}</td>
-                    <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETB")}</td>
-                    <td className="w-[90px] px-1 py-0.5">{milestoneCell("ETD")}</td>
-                    <td className="w-[80px] px-1 py-0.5">
+                    <td className="w-[82px] px-1 py-0.5">{milestoneCell("ETA_OUTER_ROADS")}</td>
+                    <td className="w-[82px] px-1 py-0.5">{milestoneCell("EPOB")}</td>
+                    <td className="w-[82px] px-1 py-0.5">{milestoneCell("ETB")}</td>
+                    <td className="w-[82px] px-1 py-0.5">{milestoneCell("ETD")}</td>
+                    <td className="w-[72px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -1183,7 +1200,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {renderActionIcon("ETA_SERVICES", actionValue(appointment.id, "ETA_SERVICES"), appointment)}
                       </div>
                     </td>
-                    <td className="w-[70px] px-1 py-0.5">
+                    <td className="w-[64px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -1197,7 +1214,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {renderActionIcon("LINE_UP", actionValue(appointment.id, "LINE_UP"), appointment)}
                       </div>
                     </td>
-                    <td className="w-[80px] px-1 py-0.5">
+                    <td className="w-[72px] px-1 py-0.5">
                       <div
                         role="button"
                         tabIndex={0}
@@ -1221,7 +1238,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         {followedIds[appointment.id] ? "★" : "☆"}
                       </button>
                     </td>
-                    <td className="w-[80px] px-1 py-0.5">
+                    <td className="w-[68px] px-1 py-0.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -1246,11 +1263,8 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                       <td colSpan={11} className="px-1 py-1">
                         <TimelinePanel
                           appointmentId={appointment.id}
-                          initialOtherAppointmentsAgents={
-                            appointment.other_agents?.trim() ||
-                            appointment.other_agents_role?.trim() ||
-                            "-"
-                          }
+                          initialChartererAgent={initialChartererAgent}
+                          initialOtherAgents={initialOtherAgents}
                         />
                         <div className="mt-2 w-full border border-slate-700 bg-slate-900 p-2">
                           <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-green-400">

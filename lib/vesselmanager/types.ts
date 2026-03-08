@@ -1,10 +1,9 @@
-﻿export type AppointmentStatus =
-  | "PROSPECT"
-  | "EN_ROUTE"
-  | "OUTER_ROADS"
-  | "IN_PORT"
+export type AppointmentStatus =
+  | "EN ROUTE"
+  | "ANCHORED OUTER ROADS"
+  | "IN PORT"
   | "ALONGSIDE"
-  | "SAILING"
+  | "SAILED"
   | "CLOSED";
 
 export type Appointment = {
@@ -56,9 +55,11 @@ export type TimelineEventCode =
   | "ETA_OUTER_ROADS"
   | "EPOB"
   | "ETA_RIVER"
+  | "ETHI"
   | "ETB"
   | "COMMENCE_OPS"
   | "COMPLETE_OPS"
+  | "ET_COSP"
   | "ETD";
 
 export type CreateAppointmentInput = {
@@ -93,3 +94,4 @@ export type CreateTimelineInput = {
   event_date?: string | null;
   event_time_text?: string | null;
 };
+

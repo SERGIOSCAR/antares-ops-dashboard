@@ -6,10 +6,10 @@ export function deriveAppointmentStatus(timeline: AppointmentTimelineRow[]): App
   const hasAny = (eventType: AppointmentTimelineRow["event_type"]) =>
     timeline.some((row) => row.event_type === eventType && (!!row.ata || !!row.eta));
 
-  if (hasAta("ETD")) return "SAILING";
+  if (hasAta("ETD")) return "SAILED";
   if (hasAta("ETB")) return "ALONGSIDE";
-  if (hasAta("ETA_RIVER")) return "IN_PORT";
-  if (hasAta("EPOB")) return "OUTER_ROADS";
-  if (hasAny("ETA_OUTER_ROADS")) return "EN_ROUTE";
-  return "PROSPECT";
+  if (hasAta("ETA_RIVER")) return "IN PORT";
+  if (hasAta("EPOB")) return "ANCHORED OUTER ROADS";
+  if (hasAny("ETA_OUTER_ROADS")) return "EN ROUTE";
+  return "EN ROUTE";
 }

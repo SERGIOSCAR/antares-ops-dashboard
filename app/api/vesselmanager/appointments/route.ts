@@ -11,7 +11,13 @@ const APPOINTMENT_SELECT_NO_SHIFT_LINK =
   "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_ALERT_SAFE =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+
+const APPOINTMENT_SELECT_AGENTS_SAFE =
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,status,created_by,created_at";
+
+const APPOINTMENT_SELECT_OTHER_ONLY_SAFE =
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_BASE =
   "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,status,created_by,created_at";
@@ -150,6 +156,20 @@ export async function GET() {
     if (query.error && hasMissingColumnError(query.error.message)) {
       query = await supabase
         .from("appointments")
+        .select(APPOINTMENT_SELECT_AGENTS_SAFE)
+        .order("created_at", { ascending: false });
+    }
+
+    if (query.error && hasMissingColumnError(query.error.message)) {
+      query = await supabase
+        .from("appointments")
+        .select(APPOINTMENT_SELECT_OTHER_ONLY_SAFE)
+        .order("created_at", { ascending: false });
+    }
+
+    if (query.error && hasMissingColumnError(query.error.message)) {
+      query = await supabase
+        .from("appointments")
         .select(APPOINTMENT_SELECT_BASE)
         .order("created_at", { ascending: false });
     }
@@ -212,7 +232,7 @@ export async function POST(req: Request) {
         body.needs_daily_prospect === null || body.needs_daily_prospect === undefined
           ? true
           : !!body.needs_daily_prospect,
-      status: body.status ?? "PROSPECT",
+      status: body.status ?? "EN ROUTE",
     };
 
     let insertRes = await supabase
@@ -250,6 +270,7 @@ export async function POST(req: Request) {
         cargo_operation: payload.cargo_operation,
         cargo_grade: payload.cargo_grade,
         cargo_qty: payload.cargo_qty,
+        charterer_agent: payload.charterer_agent,
         other_agents: payload.other_agents,
         other_agents_role: payload.other_agents_role,
         status: payload.status,

@@ -11,7 +11,7 @@ create table if not exists public.appointments (
   cargo_operation text,
   cargo_grade text,
   cargo_qty numeric,
-  status text not null default 'PROSPECT',
+  status text not null default 'EN ROUTE',
   created_by uuid,
   created_at timestamp without time zone not null default now()
 );

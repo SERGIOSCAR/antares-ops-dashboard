@@ -10,10 +10,13 @@ const APPOINTMENT_SELECT_NO_SHIFT_LINK =
   "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_WITH_OTHER_AGENTS =
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,status,created_by,created_at";
+
+const APPOINTMENT_SELECT_WITH_OTHER_ONLY =
   "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_ALERT_SAFE =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_BASE =
   "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,status,created_by,created_at";
@@ -95,6 +98,13 @@ export async function GET(
             .eq("id", id)
             .single();
           if (!withOtherAgents.error) return withOtherAgents;
+
+          const withOtherOnly = await supabase
+            .from("appointments")
+            .select(APPOINTMENT_SELECT_WITH_OTHER_ONLY)
+            .eq("id", id)
+            .single();
+          if (!withOtherOnly.error) return withOtherOnly;
         }
 
         if (!hasMissingAppointmentColumn(full.error.message)) {
@@ -234,6 +244,7 @@ export async function PATCH(
         cargo_operation: payload.cargo_operation,
         cargo_grade: payload.cargo_grade,
         cargo_qty: payload.cargo_qty,
+        charterer_agent: payload.charterer_agent,
         other_agents: payload.other_agents,
         other_agents_role: payload.other_agents_role,
         notify_eta_suppliers: payload.notify_eta_suppliers,
@@ -262,6 +273,7 @@ export async function PATCH(
         cargo_operation: payload.cargo_operation,
         cargo_grade: payload.cargo_grade,
         cargo_qty: payload.cargo_qty,
+        charterer_agent: payload.charterer_agent,
         other_agents: payload.other_agents,
         other_agents_role: payload.other_agents_role,
       };

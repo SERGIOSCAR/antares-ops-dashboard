@@ -15,7 +15,7 @@ export function filterAppointments(
   >;
 
   if (view === "board") {
-    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILING");
+    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILED");
   }
 
   if (view === "my") {
@@ -32,15 +32,15 @@ export function filterAppointments(
   }
 
   if (view === "active") {
-    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILING");
+    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILED");
   }
 
   if (view === "sailed") {
-    return withFlags.filter((a) => !!a.etd_ata || a.status === "CLOSED" || a.status === "SAILING");
+    return withFlags.filter((a) => !!a.etd_ata || a.status === "CLOSED" || a.status === "SAILED");
   }
 
   if (view === "tdytomo") {
-    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILING");
+    return withFlags.filter((a) => !a.etd_ata && a.status !== "CLOSED" && a.status !== "SAILED");
   }
 
   return withFlags;
