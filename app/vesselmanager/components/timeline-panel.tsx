@@ -124,10 +124,12 @@ function periodInputToIso(parsed: {
 export default function TimelinePanel({
   appointmentId,
   initialChartererAgent = "-",
+  initialSubAgent = "-",
   initialOtherAgents = "-",
 }: {
   appointmentId: string;
   initialChartererAgent?: string;
+  initialSubAgent?: string;
   initialOtherAgents?: string;
 }) {
   const [loading, setLoading] = useState(true);
@@ -138,6 +140,7 @@ export default function TimelinePanel({
   const [editingValue, setEditingValue] = useState("");
   const [editingError, setEditingError] = useState("");
   const [chartererAgentText, setChartererAgentText] = useState(initialChartererAgent);
+  const [subAgentText, setSubAgentText] = useState(initialSubAgent);
   const [otherAgentsText, setOtherAgentsText] = useState(initialOtherAgents);
 
   useEffect(() => {
@@ -164,13 +167,14 @@ export default function TimelinePanel({
           }
           if (row.event_date) {
             const display = formatOperationalDisplay(row.event_date, row.event_time_text);
-            next[item.event_type] = { eta: display, ata: "" };
+            next[item.event_type] = { eta: display, ata: row.ata ? display : "" };
             return;
           }
           next[item.event_type] = { eta: item.eta || "", ata: item.ata || "" };
         });
         setRows(next);
         setChartererAgentText(json.data?.appointment?.charterer_agent?.trim() || initialChartererAgent || "-");
+        setSubAgentText(initialSubAgent || "-");
         const fetchedOtherAgents = [
           json.data?.appointment?.other_agents?.trim() || "",
           json.data?.appointment?.other_agents_role?.trim() || "",
@@ -192,7 +196,7 @@ export default function TimelinePanel({
     return () => {
       active = false;
     };
-  }, [appointmentId, initialChartererAgent, initialOtherAgents]);
+  }, [appointmentId, initialChartererAgent, initialSubAgent, initialOtherAgents]);
 
   const labelFor = (code: EventCode, row?: { eta: string; ata: string }) => {
     const source = row?.ata || row?.eta || "";
@@ -200,8 +204,8 @@ export default function TimelinePanel({
     const completedPast = !!row?.ata && dt && !Number.isNaN(dt.getTime()) && dt.getTime() <= Date.now();
     if (code === "ETA_RIVER") return completedPast ? "ARRIVED UPRIVER" : "ETA UPRIVER";
     if (code === "ETHI") return completedPast ? "HOLDS INSPECTED" : "ETHI";
-    if (code === "COMMENCE_OPS") return completedPast ? "COMMENCED OPS" : "ET-COMMENCE OPS";
-    if (code === "COMPLETE_OPS") return completedPast ? "COMPLETED OPS" : "ET-COMPLETE OPS";
+    if (code === "COMMENCE_OPS") return completedPast ? "COMMENCED OPS" : "ET-BEGIN OPS";
+    if (code === "COMPLETE_OPS") return completedPast ? "COMPLETED OPS" : "ET-FINISH OPS";
     if (code === "ETA_BUNKER") return completedPast ? "ARRIVED BUNKER ZONE" : "ETA BUNKER";
     if (code === "ET_COSP") return completedPast ? "COMMENCED SEA PASSAGE" : "ET-COSP";
     return String(code).replaceAll("_", " ");
@@ -333,7 +337,7 @@ export default function TimelinePanel({
     <div className="space-y-1 text-xs text-slate-200">
       {error ? <div className="text-red-400">{error}</div> : null}
 
-      <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr)) minmax(0, 1.6fr)" }}>
+      <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr)) minmax(0, 1.6fr) repeat(2, minmax(0, 1fr))" }}>
         {row1Events.map((event) => {
           const current = rows[event.code];
           const displayValue = compactFromIso(current?.ata || current?.eta);
@@ -385,15 +389,21 @@ export default function TimelinePanel({
           );
         })}
         <div className="border border-slate-700 bg-slate-900 px-2 py-1">
+          <div className="text-[11px] text-slate-300">OTHER AGENTS</div>
+          <div className="mt-1 truncate text-slate-100" title={otherAgentsText}>
+            {otherAgentsText || "-"}
+          </div>
+        </div>
+        <div className="border border-slate-700 bg-slate-900 px-2 py-1">
           <div className="text-[11px] text-slate-300">CHARTERER&apos;S AGENT</div>
           <div className="mt-1 truncate text-slate-100" title={chartererAgentText}>
             {chartererAgentText || "-"}
           </div>
         </div>
         <div className="border border-slate-700 bg-slate-900 px-2 py-1">
-          <div className="text-[11px] text-slate-300">OTHER AGENTS</div>
-          <div className="mt-1 truncate text-slate-100" title={otherAgentsText}>
-            {otherAgentsText || "-"}
+          <div className="text-[11px] text-slate-300">SUB-AGENT</div>
+          <div className="mt-1 truncate text-slate-100" title={subAgentText}>
+            {subAgentText || "-"}
           </div>
         </div>
       </div>

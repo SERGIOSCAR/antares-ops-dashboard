@@ -2,9 +2,15 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import AppointmentForm from "@/app/vesselmanager/components/appointment-form";
 import VesselManagerBrand from "@/app/vesselmanager/components/vesselmanager-brand";
-import type { Appointment, AppointmentRecipient } from "@/lib/vesselmanager/types";
+import type { Appointment, AppointmentRecipient, AppointmentTimelineRow, EtaNoticeSettings } from "@/lib/vesselmanager/types";
 
-async function fetchAppointment(id: string): Promise<{ appointment?: Appointment; recipients?: AppointmentRecipient[]; error?: string }> {
+async function fetchAppointment(id: string): Promise<{
+  appointment?: Appointment;
+  recipients?: AppointmentRecipient[];
+  timeline?: AppointmentTimelineRow[];
+  eta_notice?: EtaNoticeSettings | null;
+  error?: string;
+}> {
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
@@ -20,12 +26,16 @@ async function fetchAppointment(id: string): Promise<{ appointment?: Appointment
     data?: {
       appointment?: Appointment;
       recipients?: AppointmentRecipient[];
+      timeline?: AppointmentTimelineRow[];
+      eta_notice?: EtaNoticeSettings | null;
     };
   };
 
   return {
     appointment: json.data?.appointment,
     recipients: json.data?.recipients || [],
+    timeline: json.data?.timeline || [],
+    eta_notice: json.data?.eta_notice || null,
   };
 }
 
@@ -35,7 +45,8 @@ export default async function EditAppointmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { appointment, recipients, error } = await fetchAppointment(id);
+  const { appointment, recipients, timeline, eta_notice, error } = await fetchAppointment(id);
+  const serviceChecklistAta = timeline?.find((row) => row.event_type === "COMPLETE_OPS")?.ata || null;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
@@ -62,6 +73,8 @@ export default async function EditAppointmentPage({
           appointmentId={id}
           initialAppointment={appointment}
           initialRecipients={recipients}
+          initialServiceChecklistAta={serviceChecklistAta}
+          initialEtaNotice={eta_notice || undefined}
         />
       )}
     </main>

@@ -108,12 +108,8 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
     .order("shift_start", { ascending: true });
 
   const timelineShiftIds = (timelineShifts || []).map((s: any) => s.id as string);
-  const shiftOptions = (timelineShifts || []).map((s: any) => ({
-    id: String(s.id),
-    label: `${formatDateTime(s.shift_start)} -> ${formatDateTime(s.shift_end)}`,
-  }));
 
-  let runningShiftEvents: Array<{ id: string; shiftId: string; from: string; to: string; reason: string }> = [];
+  let runningShiftEvents: Array<{ id: string; from: string; to: string; reason: string }> = [];
   if (timelineShiftIds.length > 0) {
     const { data: delayRows } = await admin
       .from("shift_delays")
@@ -123,7 +119,6 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
 
     runningShiftEvents = (delayRows || []).map((row: any) => ({
       id: String(row.id || ""),
-      shiftId: String(row.shift_id || ""),
       from: String(row.from_time || ""),
       to: String(row.to_time || ""),
       reason: String(row.reason || ""),
@@ -251,12 +246,10 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
                   vesselId={vessel.id}
                   events={runningShiftEvents.map((e) => ({
                     id: e.id,
-                    shiftId: e.shiftId,
                     from: e.from,
                     to: e.to,
                     reason: e.reason,
                   }))}
-                  shiftOptions={shiftOptions}
                 />
               </div>
             </details>

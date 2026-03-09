@@ -73,7 +73,9 @@ export async function POST(req: Request) {
           .select("id,appointment_id,event_type,eta,ata,event_date,event_time_text")
           .single();
 
-    let { data, error } = await withOperationalMutation;
+    let data: any = null;
+    let error: any = null;
+    ({ data, error } = await withOperationalMutation);
 
     if (error && isMissingOperationalColumns(error.message)) {
       const legacyEta = payload.eta ?? (payload.ata ? null : payload.event_time_text ?? null);
@@ -108,7 +110,7 @@ export async function POST(req: Request) {
       .select("id,appointment_id,event_type,eta,ata,event_date,event_time_text")
       .eq("appointment_id", body.appointment_id);
 
-    let timelineRowsRaw = withOperationalTimeline.data;
+    let timelineRowsRaw: any[] | null = withOperationalTimeline.data as any[] | null;
     let timelineError = withOperationalTimeline.error;
 
     if (timelineError && isMissingOperationalColumns(timelineError.message)) {
@@ -125,7 +127,11 @@ export async function POST(req: Request) {
     }
 
     const timelineRows = (timelineRowsRaw ?? []) as AppointmentTimelineRow[];
-    const status = deriveAppointmentStatus(timelineRows);
+    let status = deriveAppointmentStatus(timelineRows);
+    const checklistCompleted = timelineRows.some((row) => row.event_type === "COMPLETE_OPS" && !!row.ata);
+    if (checklistCompleted) {
+      status = "CLOSED";
+    }
 
     const { error: appointmentUpdateError } = await supabase
       .from("appointments")

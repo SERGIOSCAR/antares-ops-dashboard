@@ -1,25 +1,31 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { deriveAppointmentStatus } from "@/lib/vesselmanager/status";
-import type { AppointmentRecipient, AppointmentTimelineRow, CreateAppointmentInput } from "@/lib/vesselmanager/types";
+import type {
+  AppointmentRecipient,
+  AppointmentTimelineRow,
+  CreateAppointmentInput,
+  EtaNoticeLine,
+  EtaNoticeSettings,
+} from "@/lib/vesselmanager/types";
 
 const APPOINTMENT_SELECT_FULL =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,shiftreporter_link,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,shiftreporter_link,other_agents,other_agents_role,sub_agent_id,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_NO_SHIFT_LINK =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,holds,appointment_datetime,charterer_agent,thanks_to,other_agents,other_agents_role,sub_agent_id,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_WITH_OTHER_AGENTS =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,sub_agent_id,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_WITH_OTHER_ONLY =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,other_agents,other_agents_role,sub_agent_id,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_ALERT_SAFE =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,charterer_agent,other_agents,other_agents_role,sub_agent_id,notify_eta_suppliers,notify_eta_agents_terminals,notify_none,needs_daily_prospect,status,created_by,created_at";
 
 const APPOINTMENT_SELECT_BASE =
-  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,status,created_by,created_at";
+  "id,vessel_name,role,appointed_by,port,terminal,cargo_operation,cargo_grade,cargo_qty,sub_agent_id,status,created_by,created_at";
 
 function isMissingOperationalColumns(message?: string) {
   if (!message) return false;
@@ -40,6 +46,7 @@ function hasMissingAppointmentColumn(message?: string) {
     message.includes("thanks_to") ||
     message.includes("shiftreporter_link") ||
     message.includes("other_agents") ||
+    message.includes("sub_agent_id") ||
     message.includes("notify_eta_suppliers") ||
     message.includes("needs_daily_prospect")
   );
@@ -57,6 +64,78 @@ function sanitizeRecipients(input: AppointmentRecipient[] | undefined) {
     }));
 }
 
+function sanitizeEtaNotice(input: EtaNoticeSettings | undefined) {
+  if (!input) return null;
+  const lines = Array.isArray(input.lines)
+    ? input.lines
+        .map((line: EtaNoticeLine) => ({
+          supplier_name: String(line.supplier_name || "").trim(),
+          supplier_emails: String(line.supplier_emails || "").trim(),
+          service_name: String(line.service_name || "").trim(),
+          in_mode: line.in_mode === "yes" || line.in_mode === "qty" ? line.in_mode : "none",
+          in_qty: line.in_mode === "qty" ? Number(line.in_qty || 0) : null,
+          out_mode: line.out_mode === "yes" || line.out_mode === "qty" ? line.out_mode : "none",
+          out_qty: line.out_mode === "qty" ? Number(line.out_qty || 0) : null,
+          trigger_eta_eosp: !!line.trigger_eta_eosp,
+          trigger_epob: !!line.trigger_epob,
+          trigger_etb: !!line.trigger_etb,
+          trigger_etd: !!line.trigger_etd,
+          trigger_eta_bunker: !!line.trigger_eta_bunker,
+          is_active: line.is_active === undefined ? true : !!line.is_active,
+        }))
+        .filter((line) => line.service_name && line.supplier_name && line.supplier_emails)
+    : [];
+  return {
+    enabled: input.enabled === undefined ? true : !!input.enabled,
+    first_service_starts_at: input.first_service_starts_at || null,
+    last_service_ends_at: input.last_service_ends_at || null,
+    lines,
+  };
+}
+
+async function saveEtaNotice(supabase: Awaited<ReturnType<typeof supabaseServer>>, appointmentId: string, etaNotice?: EtaNoticeSettings) {
+  const parsed = sanitizeEtaNotice(etaNotice);
+  if (!parsed) return;
+
+  const upsertSettings = await supabase.from("appointment_eta_notice_settings").upsert(
+    {
+      appointment_id: appointmentId,
+      enabled: parsed.enabled,
+      first_service_starts_at: parsed.first_service_starts_at,
+      last_service_ends_at: parsed.last_service_ends_at,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "appointment_id" },
+  );
+  if (upsertSettings.error && !upsertSettings.error.message.includes("appointment_eta_notice_settings")) {
+    throw new Error(upsertSettings.error.message);
+  }
+
+  const deleteLines = await supabase.from("appointment_eta_notice_lines").delete().eq("appointment_id", appointmentId);
+  if (deleteLines.error && !deleteLines.error.message.includes("appointment_eta_notice_lines")) {
+    throw new Error(deleteLines.error.message);
+  }
+
+  if (parsed.lines.length) {
+    const insertLines = await supabase.from("appointment_eta_notice_lines").insert(
+      parsed.lines.map((line) => ({
+        appointment_id: appointmentId,
+        ...line,
+      })),
+    );
+    if (insertLines.error && !insertLines.error.message.includes("appointment_eta_notice_lines")) {
+      throw new Error(insertLines.error.message);
+    }
+  }
+}
+
+function sanitizeInt(input: unknown, maxDigits: number) {
+  if (input === null || input === undefined || input === "") return null;
+  const digits = String(input).replace(/\D/g, "").slice(0, maxDigits);
+  if (!digits) return null;
+  return Number(digits);
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -65,7 +144,7 @@ export async function GET(
     const { id } = await params;
     const supabase = await supabaseServer();
 
-    const [{ data: appointment, error: appointmentError }, timelineResult, recipientsResult] = await Promise.all([
+    const [{ data: appointment, error: appointmentError }, timelineResult, recipientsResult, etaSettingsResult, etaLinesResult] = await Promise.all([
       (async () => {
         const full = await supabase
           .from("appointments")
@@ -139,6 +218,19 @@ export async function GET(
         .select("id,appointment_id,category,name,email,is_onetimer")
         .eq("appointment_id", id)
         .order("created_at", { ascending: true }),
+      supabase
+        .from("appointment_eta_notice_settings")
+        .select("appointment_id,enabled,first_service_starts_at,last_service_ends_at")
+        .eq("appointment_id", id)
+        .maybeSingle(),
+      supabase
+        .from("appointment_eta_notice_lines")
+        .select(
+          "id,appointment_id,supplier_name,supplier_emails,service_name,in_mode,in_qty,out_mode,out_qty,trigger_eta_eosp,trigger_epob,trigger_etb,trigger_etd,trigger_eta_bunker,is_active",
+        )
+        .eq("appointment_id", id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true }),
     ]);
 
     if (appointmentError) {
@@ -157,11 +249,23 @@ export async function GET(
       ? []
       : ((recipientsResult.data ?? []) as AppointmentRecipient[]);
 
+    const etaNotice = etaSettingsResult.error
+      ? null
+      : {
+          ...(etaSettingsResult.data || {
+            enabled: true,
+            first_service_starts_at: null,
+            last_service_ends_at: null,
+          }),
+          lines: etaLinesResult.error ? [] : (etaLinesResult.data ?? []),
+        };
+
     return NextResponse.json({
       data: {
         appointment: { ...appointment, status: derivedStatus },
         timeline: timelineRows,
         recipients,
+        eta_notice: etaNotice,
       },
     });
   } catch (error: unknown) {
@@ -194,14 +298,14 @@ export async function PATCH(
       terminal: body.terminal?.trim() || null,
       cargo_operation: body.cargo_operation?.trim() || null,
       cargo_grade: body.cargo_grade?.trim() || null,
-      cargo_qty: body.cargo_qty ?? null,
-      holds: body.holds ?? null,
-      appointment_datetime: body.appointment_datetime || null,
+      cargo_qty: sanitizeInt(body.cargo_qty, 6),
+      holds: sanitizeInt(body.holds, 2),
       charterer_agent: body.charterer_agent?.trim() || null,
       thanks_to: body.thanks_to?.trim() || null,
       shiftreporter_link: body.shiftreporter_link?.trim() || null,
       other_agents: body.other_agents?.trim() || null,
       other_agents_role: body.other_agents_role?.trim() || null,
+      sub_agent_id: body.sub_agent_id || null,
       notify_eta_suppliers: !!body.notify_eta_suppliers,
       notify_eta_agents_terminals: !!body.notify_eta_agents_terminals,
       notify_none: !!body.notify_none,
@@ -247,6 +351,7 @@ export async function PATCH(
         charterer_agent: payload.charterer_agent,
         other_agents: payload.other_agents,
         other_agents_role: payload.other_agents_role,
+        sub_agent_id: payload.sub_agent_id,
         notify_eta_suppliers: payload.notify_eta_suppliers,
         notify_eta_agents_terminals: payload.notify_eta_agents_terminals,
         notify_none: payload.notify_none,
@@ -276,6 +381,7 @@ export async function PATCH(
         charterer_agent: payload.charterer_agent,
         other_agents: payload.other_agents,
         other_agents_role: payload.other_agents_role,
+        sub_agent_id: payload.sub_agent_id,
       };
 
       const fallbackUpdate = await supabase
@@ -312,6 +418,12 @@ export async function PATCH(
       if (insertRecipients.error && !insertRecipients.error.message.includes("appointment_recipients")) {
         return NextResponse.json({ error: insertRecipients.error.message }, { status: 500 });
       }
+    }
+
+    try {
+      await saveEtaNotice(supabase, id, body.eta_notice);
+    } catch (error: unknown) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save ETA notices" }, { status: 500 });
     }
 
     return NextResponse.json({ data: updateResult.data });

@@ -29,6 +29,7 @@ type MilestoneCode = "ETA_OUTER_ROADS" | "EPOB" | "ETB" | "ETD";
 type ActionCode = "ETA_SERVICES" | "LINE_UP" | "DAILY_REPORT";
 type SortBasis = "EPOB" | "ETB" | "ETA_OUTER_ROADS" | "ETD";
 type TdyTomoScope = "all" | "followed";
+type FollowedSummaryMode = "every_day" | "stop";
 
 type TimelineMap = Record<string, Partial<Record<TimelineEventCode, { eta: string; ata: string }>>>;
 
@@ -46,6 +47,115 @@ type ActionStateEntry = {
   updatedOn: string;
 };
 type ActionState = Record<string, Record<ActionCode, ActionStateEntry>>;
+type LineupEntryState = {
+  id: string;
+  appointment_id: string;
+  content: string;
+  version: number;
+  updated_at: string;
+};
+type SubAgentRow = { id: string; name: string; slug: string };
+type DprBatch =
+  | "cgnees_shippers_terminal"
+  | "charterers_agent"
+  | "principal_dpr"
+  | "dpr_for_1"
+  | "dpr_for_2"
+  | "dpr_for_3"
+  | "all";
+type DprDraft = {
+  openingSentence: string;
+  prospects: string;
+  lineUp: string;
+  shiftReport: string;
+  stowplan: string;
+  runningSof: string;
+  note: string;
+  recipients: {
+    cgnees_shippers_terminal: string;
+    charterers_agent: string;
+    principal_dpr: string;
+    dpr_for_1: string;
+    dpr_for_2: string;
+    dpr_for_3: string;
+  };
+  lastGeneratedAt: string;
+  lastGeneratedBatch: DprBatch;
+};
+
+const DPR_TOOL = "daily_prospect_report";
+
+function emptyDprDraft(): DprDraft {
+  return {
+    openingSentence: "",
+    prospects: "",
+    lineUp: "",
+    shiftReport: "",
+    stowplan: "",
+    runningSof: "",
+    note: "",
+    recipients: {
+      cgnees_shippers_terminal: "",
+      charterers_agent: "",
+      principal_dpr: "",
+      dpr_for_1: "",
+      dpr_for_2: "",
+      dpr_for_3: "",
+    },
+    lastGeneratedAt: "",
+    lastGeneratedBatch: "principal_dpr",
+  };
+}
+
+function parseDprDraft(raw: string): DprDraft {
+  const base = emptyDprDraft();
+  const text = String(raw || "").trim();
+  if (!text) return base;
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    const parsedBatch = String(parsed.lastGeneratedBatch || "");
+    return {
+      openingSentence: String(parsed.openingSentence || parsed.intro || ""),
+      prospects: String(parsed.prospects || parsed.estimates || ""),
+      lineUp: String(parsed.lineUp || ""),
+      shiftReport: String(parsed.shiftReport || ""),
+      stowplan: String(parsed.stowplan || ""),
+      runningSof: String(parsed.runningSof || ""),
+      note: String(parsed.note || parsed.notes || ""),
+      recipients: {
+        cgnees_shippers_terminal: String((parsed.recipients as any)?.cgnees_shippers_terminal || ""),
+        charterers_agent: String((parsed.recipients as any)?.charterers_agent || ""),
+        principal_dpr: String((parsed.recipients as any)?.principal_dpr || ""),
+        dpr_for_1: String((parsed.recipients as any)?.dpr_for_1 || ""),
+        dpr_for_2: String((parsed.recipients as any)?.dpr_for_2 || ""),
+        dpr_for_3: String((parsed.recipients as any)?.dpr_for_3 || ""),
+      },
+      lastGeneratedAt: String(parsed.lastGeneratedAt || ""),
+      lastGeneratedBatch:
+        parsedBatch === "cgnees_shippers_terminal" ||
+        parsedBatch === "charterers_agent" ||
+        parsedBatch === "principal_dpr" ||
+        parsedBatch === "dpr_for_1" ||
+        parsedBatch === "dpr_for_2" ||
+        parsedBatch === "dpr_for_3" ||
+        parsedBatch === "all"
+          ? parsedBatch
+          : parsedBatch === "principal"
+            ? "principal_dpr"
+            : parsedBatch === "batch_a"
+              ? "cgnees_shippers_terminal"
+              : parsedBatch === "batch_b"
+                ? "charterers_agent"
+                : parsedBatch === "batch_c"
+                  ? "dpr_for_1"
+                  : parsedBatch === "batch_d"
+                    ? "dpr_for_2"
+                    : "principal_dpr",
+    };
+  } catch {
+    return { ...base, prospects: text };
+  }
+}
 
 function formatOperationalDisplay(date: string, text?: string | null) {
   const d = new Date(date);
@@ -361,6 +471,9 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   const [followedIds, setFollowedIds] = useState<Record<string, boolean>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [followedSummaryMode, setFollowedSummaryMode] = useState<FollowedSummaryMode>("stop");
+  const [followedSummaryStatus, setFollowedSummaryStatus] = useState("");
+  const [sendingFollowedSummary, setSendingFollowedSummary] = useState(false);
   const currentUser = null;
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeAppointment, setActiveAppointment] = useState<string | null>(null);
@@ -374,7 +487,13 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   const [, setEditingError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [actionState, setActionState] = useState<ActionState>({});
+  const [lineupByAppointment, setLineupByAppointment] = useState<Record<string, LineupEntryState>>({});
+  const [subAgentById, setSubAgentById] = useState<Record<string, string>>({});
   const [shiftLinkStatus, setShiftLinkStatus] = useState<Record<string, string>>({});
+  const [dprByAppointment, setDprByAppointment] = useState<Record<string, DprDraft>>({});
+  const [dprBusyByAppointment, setDprBusyByAppointment] = useState<Record<string, boolean>>({});
+  const [dprStatusByAppointment, setDprStatusByAppointment] = useState<Record<string, string>>({});
+  const [dprBatchByAppointment, setDprBatchByAppointment] = useState<Record<string, DprBatch>>({});
 
   const workspaceKey = (appointmentId: string, tool: string) =>
     `${appointmentId}:${tool}`;
@@ -402,8 +521,8 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
         if (withOperational.event_date) {
           const formatted = formatOperationalDisplay(withOperational.event_date, withOperational.event_time_text);
           map[row.event_type] = {
-            eta: row.eta || formatted,
-            ata: row.ata || "",
+            eta: formatted,
+            ata: withOperational.event_time_text && row.ata ? formatted : row.ata || "",
           };
           return;
         }
@@ -530,21 +649,33 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   };
+  const localDateKeyFromIso = (value?: string | null) => {
+    if (!value) return "";
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return "";
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+  };
 
   const defaultActionValue = (code: ActionCode): ActionValue =>
     code === "ETA_SERVICES" ? "Pending" : "Open";
 
   const cycleAction = (appointmentId: string, code: ActionCode) => {
+    if (code === "LINE_UP") {
+      void handleOpenTool(appointmentId, "lineup");
+      return;
+    }
+    if (code === "DAILY_REPORT") {
+      void handleOpenTool(appointmentId, DPR_TOOL);
+      return;
+    }
     setActionState((prev) => {
       const current = actionValue(appointmentId, code);
       const next = current === "Pending" ? "Open" : current === "Open" ? "Done" : "Pending";
+      const prevForAppointment = prev[appointmentId] || {};
       return {
         ...prev,
         [appointmentId]: {
-          ETA_SERVICES: prev[appointmentId]?.ETA_SERVICES || { value: "Pending", updatedOn: todayKey() },
-          LINE_UP: prev[appointmentId]?.LINE_UP || { value: "Open", updatedOn: todayKey() },
-          DAILY_REPORT: prev[appointmentId]?.DAILY_REPORT || { value: "Open", updatedOn: todayKey() },
-          ...(prev[appointmentId] || {}),
+          ...prevForAppointment,
           [code]: {
             value: next,
             updatedOn: todayKey(),
@@ -555,6 +686,17 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   };
 
   const actionValue = (appointmentId: string, code: ActionCode): ActionValue => {
+    if (code === "LINE_UP") {
+      const lineup = lineupByAppointment[appointmentId];
+      if (!lineup?.content?.trim()) return "Open";
+      return localDateKeyFromIso(lineup.updated_at) === todayKey() ? "Done" : "Open";
+    }
+    if (code === "DAILY_REPORT") {
+      const dpr = dprByAppointment[appointmentId];
+      if (dpr?.lastGeneratedAt && localDateKeyFromIso(dpr.lastGeneratedAt) === todayKey()) {
+        return "Done";
+      }
+    }
     const entry = actionState[appointmentId]?.[code];
     if (!entry) return defaultActionValue(code);
     // Daily reset: yesterday's DONE becomes today's default pending/open.
@@ -568,49 +710,97 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     appointmentId: string,
     tool:
       | "lineup"
-      | "running_sof"
       | "husbandry_notes"
-      | "other_services"
+      | "accounting_notes"
+      | "commercial_notes"
       | "shiftreporter"
-      | "future_box_1"
-      | "future_clickable_1"
-      | "future_clickable_2",
+      | "daily_prospect_report",
   ) => {
     setActiveAppointment(appointmentId);
     setActiveTool(tool);
     const key = workspaceKey(appointmentId, tool);
     if (!loadedWorkspaceKeys[key]) {
       try {
-        const res = await fetch(
-          `/api/vesselmanager/workspace-notes?appointment_id=${encodeURIComponent(appointmentId)}&tool=${encodeURIComponent(tool)}`,
-          { cache: "no-store" },
-        );
-        const json = (await res.json()) as { data?: { content?: string | null } | null };
-        if (res.ok) {
-          setWorkspaceTextByKey((prev) => ({
-            ...prev,
-            [key]: json.data?.content ?? "",
-          }));
+        if (tool === "lineup") {
+          const res = await fetch(
+            `/api/vesselmanager/lineup?appointment_id=${encodeURIComponent(appointmentId)}`,
+            { cache: "no-store" },
+          );
+          const json = (await res.json()) as {
+            data?: {
+              id: string;
+              appointment_id: string;
+              content: string;
+              version: number;
+              updated_at: string;
+            } | null;
+          };
+          if (res.ok) {
+            setWorkspaceTextByKey((prev) => ({
+              ...prev,
+              [key]: json.data?.content ?? "",
+            }));
+            if (json.data) {
+              setLineupByAppointment((prev) => ({
+                ...prev,
+                [appointmentId]: json.data!,
+              }));
+            }
+          }
+        } else {
+          const res = await fetch(
+            `/api/vesselmanager/workspace-notes?appointment_id=${encodeURIComponent(appointmentId)}&tool=${encodeURIComponent(tool)}`,
+            { cache: "no-store" },
+          );
+          const json = (await res.json()) as { data?: { content?: string | null } | null };
+          if (res.ok) {
+            const content = json.data?.content ?? "";
+            setWorkspaceTextByKey((prev) => ({
+              ...prev,
+              [key]: content,
+            }));
+            if (tool === DPR_TOOL) {
+              const parsed = parseDprDraft(content);
+              setDprByAppointment((prev) => ({ ...prev, [appointmentId]: parsed }));
+              setDprBatchByAppointment((prev) => ({ ...prev, [appointmentId]: parsed.lastGeneratedBatch || "principal_dpr" }));
+            }
+          }
         }
       } finally {
         setLoadedWorkspaceKeys((prev) => ({ ...prev, [key]: true }));
       }
     }
 
-    if (tool === "lineup") {
-      try {
-        await fetch("/api/vesselmanager/lineup-opened", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appointment_id: appointmentId }),
-        });
-      } catch {
-        // non-blocking: workspace should still open even if timestamp logging fails
-      }
-    }
   };
 
   const saveWorkspaceNote = async (appointmentId: string, tool: string, content: string) => {
+    if (tool === "lineup") {
+      const expectedVersion = lineupByAppointment[appointmentId]?.version || 0;
+      const res = await fetch("/api/vesselmanager/lineup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          content,
+          expected_version: expectedVersion,
+          updated_by: "staff",
+          updated_by_type: "staff",
+          source: "vesselmanager",
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: LineupEntryState;
+        error?: string;
+      };
+      if (!res.ok || !json.data) {
+        setSaveError(json.error || "Failed to save lineup");
+        return;
+      }
+      setSaveError("");
+      setLineupByAppointment((prev) => ({ ...prev, [appointmentId]: json.data! }));
+      return;
+    }
+
     await fetch("/api/vesselmanager/workspace-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -622,10 +812,226 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     });
   };
 
+  const syncDprDraft = (appointmentId: string, updater: (prev: DprDraft) => DprDraft) => {
+    setDprByAppointment((prev) => {
+      const nextDraft = updater(prev[appointmentId] || emptyDprDraft());
+      const key = workspaceKey(appointmentId, DPR_TOOL);
+      setWorkspaceTextByKey((textPrev) => ({ ...textPrev, [key]: JSON.stringify(nextDraft) }));
+      return { ...prev, [appointmentId]: nextDraft };
+    });
+  };
+
+  const fetchDprSnapshot = async (
+    appointmentId: string,
+    target: "lineUp" | "shiftReport" | "stowplan" | "runningSof",
+  ) => {
+    setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: true }));
+    setDprStatusByAppointment((prev) => ({ ...prev, [appointmentId]: "" }));
+    try {
+      const res = await fetch(`/api/vesselmanager/dpr-snapshot?appointment_id=${encodeURIComponent(appointmentId)}`, {
+        cache: "no-store",
+      });
+      const json = (await res.json()) as {
+        data?: {
+          lineup?: string;
+          lineupUpdatedAt?: string | null;
+          stowplan?: string;
+          cargoThisShift?: string;
+          runningSof?: string;
+        };
+        error?: string;
+      };
+      if (!res.ok || !json.data) throw new Error(json.error || "Failed to fetch DPR data");
+      const snapshot = json.data;
+
+      if (target === "lineUp") {
+        syncDprDraft(appointmentId, (draft) => ({
+          ...draft,
+          lineUp: String(snapshot.lineup || "").trim() || "-",
+        }));
+      } else if (target === "shiftReport") {
+        syncDprDraft(appointmentId, (draft) => ({
+          ...draft,
+          shiftReport: String(snapshot.cargoThisShift || "").trim() || "-",
+        }));
+      } else if (target === "stowplan") {
+        syncDprDraft(appointmentId, (draft) => ({
+          ...draft,
+          stowplan: String(snapshot.stowplan || "").trim() || "-",
+        }));
+      } else {
+        syncDprDraft(appointmentId, (draft) => ({
+          ...draft,
+          runningSof: String(snapshot.runningSof || "").trim() || "-",
+        }));
+      }
+      setDprStatusByAppointment((prev) => ({ ...prev, [appointmentId]: "Fetched latest data." }));
+    } catch (error: unknown) {
+      setDprStatusByAppointment((prev) => ({
+        ...prev,
+        [appointmentId]: error instanceof Error ? error.message : "Failed to fetch DPR data",
+      }));
+    } finally {
+      setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: false }));
+    }
+  };
+
+  const generateDprEmail = async (appointmentId: string) => {
+    const draft = dprByAppointment[appointmentId] || emptyDprDraft();
+    const batch = dprBatchByAppointment[appointmentId] || "principal_dpr";
+    setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: true }));
+    setDprStatusByAppointment((prev) => ({ ...prev, [appointmentId]: "" }));
+    try {
+      const res = await fetch("/api/vesselmanager/dpr-compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          batch,
+          recipient_groups: draft.recipients,
+          dpr: {
+            openingSentence: draft.openingSentence,
+            prospects: draft.prospects,
+            lineUp: draft.lineUp,
+            shiftReport: draft.shiftReport,
+            stowplan: draft.stowplan,
+            runningSof: draft.runningSof,
+            note: draft.note,
+          },
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: { mailto?: string };
+        error?: string;
+      };
+      if (!res.ok || !json.data?.mailto) throw new Error(json.error || "Failed to compose email");
+
+      if (typeof window !== "undefined") {
+        window.location.href = json.data.mailto;
+      }
+      const nowIso = new Date().toISOString();
+      syncDprDraft(appointmentId, (prev) => ({
+        ...prev,
+        lastGeneratedAt: nowIso,
+        lastGeneratedBatch: batch,
+      }));
+      setActionState((prev) => ({
+        ...prev,
+        [appointmentId]: {
+          ...(prev[appointmentId] || {}),
+          DAILY_REPORT: { value: "Done", updatedOn: todayKey() },
+        },
+      }));
+      setDprStatusByAppointment((prev) => ({ ...prev, [appointmentId]: "Email draft opened in Outlook." }));
+    } catch (error: unknown) {
+      setDprStatusByAppointment((prev) => ({
+        ...prev,
+        [appointmentId]: error instanceof Error ? error.message : "Failed to generate email",
+      }));
+    } finally {
+      setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: false }));
+    }
+  };
+
+  const generateDprEml = async (appointmentId: string) => {
+    const draft = dprByAppointment[appointmentId] || emptyDprDraft();
+    const batch = dprBatchByAppointment[appointmentId] || "principal_dpr";
+    setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: true }));
+    setDprStatusByAppointment((prev) => ({ ...prev, [appointmentId]: "" }));
+    try {
+      const res = await fetch("/api/vesselmanager/dpr-compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          batch,
+          output: "eml",
+          recipient_groups: draft.recipients,
+          dpr: {
+            openingSentence: draft.openingSentence,
+            prospects: draft.prospects,
+            lineUp: draft.lineUp,
+            shiftReport: draft.shiftReport,
+            stowplan: draft.stowplan,
+            runningSof: draft.runningSof,
+            note: draft.note,
+          },
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: { eml?: string; filename?: string };
+        error?: string;
+      };
+      if (!res.ok || !json.data?.eml) throw new Error(json.error || "Failed to build Outlook draft");
+
+      if (typeof window !== "undefined") {
+        const blob = new Blob([json.data.eml], { type: "message/rfc822;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = json.data.filename || `dpr-${appointmentId}.eml`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      setDprStatusByAppointment((prev) => ({
+        ...prev,
+        [appointmentId]: "Outlook draft (.eml) downloaded. Open it and click Send.",
+      }));
+    } catch (error: unknown) {
+      setDprStatusByAppointment((prev) => ({
+        ...prev,
+        [appointmentId]: error instanceof Error ? error.message : "Failed to generate Outlook draft",
+      }));
+    } finally {
+      setDprBusyByAppointment((prev) => ({ ...prev, [appointmentId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    const ids = appointments.map((x) => x.id).filter(Boolean);
+    if (!ids.length) return;
+    const run = async () => {
+      const res = await fetch(`/api/vesselmanager/lineup?appointment_ids=${encodeURIComponent(ids.join(","))}`, {
+        cache: "no-store",
+      });
+      const json = (await res.json()) as { data?: LineupEntryState[] };
+      if (!res.ok || !json.data) return;
+      const map: Record<string, LineupEntryState> = {};
+      json.data.forEach((item) => {
+        map[item.appointment_id] = item;
+      });
+      setLineupByAppointment(map);
+    };
+    void run();
+  }, [appointments]);
+
+  useEffect(() => {
+    const run = async () => {
+      const res = await fetch("/api/vesselmanager/sub-agents", { cache: "no-store" });
+      const json = (await res.json()) as { data?: SubAgentRow[] };
+      if (!res.ok || !json.data) return;
+      const map: Record<string, string> = {};
+      json.data.forEach((row) => {
+        map[row.id] = `${row.name} (${row.slug})`;
+      });
+      setSubAgentById(map);
+    };
+    void run();
+  }, []);
+
   const toAbsoluteUrl = (pathOrUrl: string) => {
     if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) return pathOrUrl;
     if (typeof window === "undefined") return pathOrUrl;
     return `${window.location.origin}${pathOrUrl}`;
+  };
+
+  const toPublicViewUrl = (pathOrUrl: string) => {
+    const raw = toAbsoluteUrl(pathOrUrl);
+    const m = raw.match(/\/v\/([^/?#]+)/i);
+    if (!m?.[1]) return "";
+    return `${window.location.origin}/v/${m[1]}/view`;
   };
 
   const ensureShiftReportLink = async (appointment: Appointment, fallbackLink: string) => {
@@ -666,6 +1072,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
         status,
         etd_ata: timeline?.ETD?.ata || null,
         epob_ata: timeline?.EPOB?.ata || null,
+        complete_ops_ata: timeline?.COMPLETE_OPS?.ata || null,
         followed_by_user: !!followedIds[appointment.id],
       };
     });
@@ -679,6 +1086,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       inport: filterAppointments("inport", appointmentsForViews, currentUser).length,
       active: filterAppointments("active", appointmentsForViews, currentUser).length,
       sailed: filterAppointments("sailed", appointmentsForViews, currentUser).length,
+      checklist_pending: filterAppointments("checklist_pending", appointmentsForViews, currentUser).length,
       tdytomo:
         tdyTomoScope === "followed"
           ? filterAppointments("followed", appointmentsForViews, currentUser).length
@@ -693,7 +1101,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       const raw = window.localStorage.getItem("vesselmanager:board-settings");
       if (!raw) return;
       const parsed = JSON.parse(raw) as { defaultView?: View; sortBasis?: SortBasis; tdyTomoScope?: TdyTomoScope };
-      const validViews: View[] = ["board", "my", "followed", "inport", "active", "sailed", "tdytomo"];
+      const validViews: View[] = ["board", "my", "followed", "inport", "active", "sailed", "checklist_pending", "tdytomo"];
       const validSort: SortBasis[] = ["EPOB", "ETB", "ETA_OUTER_ROADS", "ETD"];
       const validScope: TdyTomoScope[] = ["all", "followed"];
       if (parsed.defaultView && validViews.includes(parsed.defaultView)) {
@@ -740,6 +1148,34 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     if (typeof window === "undefined") return;
     window.localStorage.setItem("vesselmanager:followed-ids", JSON.stringify(followedIds));
   }, [followedIds]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("vesselmanager:followed-summary-mode");
+    if (saved === "every_day" || saved === "stop") setFollowedSummaryMode(saved);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("vesselmanager:followed-summary-mode", followedSummaryMode);
+  }, [followedSummaryMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("vesselmanager:action-state");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ActionState;
+      setActionState(parsed || {});
+    } catch {
+      // ignore invalid localStorage payload
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("vesselmanager:action-state", JSON.stringify(actionState));
+  }, [actionState]);
 
   const visibleRows = useMemo(() => {
     const filtered = filterAppointments(view, appointmentsForViews, currentUser);
@@ -873,6 +1309,54 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     }));
   };
 
+  const followedAppointmentIds = useMemo(
+    () => Object.entries(followedIds).filter(([, active]) => !!active).map(([id]) => id),
+    [followedIds],
+  );
+
+  const sendFollowedSummaryNow = async () => {
+    if (followedAppointmentIds.length === 0) {
+      setFollowedSummaryStatus("No followed vessels selected.");
+      return false;
+    }
+    setSendingFollowedSummary(true);
+    setFollowedSummaryStatus("");
+    try {
+      const res = await fetch("/api/vesselmanager/cron/daily-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          only_followed: true,
+          followed_ids: followedAppointmentIds,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Could not send followed-vessels summary");
+      }
+      setFollowedSummaryStatus("Followed-vessels summary sent.");
+      return true;
+    } catch (error) {
+      setFollowedSummaryStatus(error instanceof Error ? error.message : "Could not send followed-vessels summary");
+      return false;
+    } finally {
+      setSendingFollowedSummary(false);
+    }
+  };
+
+  useEffect(() => {
+    if (followedSummaryMode !== "every_day" || typeof window === "undefined") return;
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Buenos_Aires" });
+    const sentKey = window.localStorage.getItem("vesselmanager:followed-summary-last-sent");
+    if (sentKey === today) return;
+    void (async () => {
+      const ok = await sendFollowedSummaryNow();
+      if (ok) {
+        window.localStorage.setItem("vesselmanager:followed-summary-last-sent", today);
+      }
+    })();
+  }, [followedSummaryMode, followedAppointmentIds]);
+
   return (
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -905,6 +1389,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                   <option value="inport">In Port</option>
                   <option value="active">All Active</option>
                   <option value="sailed">All Sailed</option>
+                  <option value="checklist_pending">Pending Checklist</option>
                 </select>
               </label>
               <label className="block text-slate-300">
@@ -931,6 +1416,45 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                   <option value="followed">Followed vessels only</option>
                 </select>
               </label>
+              <div className="mt-3 border-t border-slate-700 pt-2 text-slate-300">
+                <div className="mb-1">Followed vessels summary mail</div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    disabled={sendingFollowedSummary}
+                    className="rounded border border-slate-600 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800 disabled:opacity-60"
+                    onClick={() => {
+                      void sendFollowedSummaryNow();
+                    }}
+                  >
+                    Only Now
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sendingFollowedSummary}
+                    className={`rounded border px-2 py-1 text-[11px] ${followedSummaryMode === "every_day" ? "border-amber-500 text-amber-300" : "border-slate-600 text-slate-100"} hover:bg-slate-800 disabled:opacity-60`}
+                    onClick={() => {
+                      setFollowedSummaryMode("every_day");
+                      setFollowedSummaryStatus("Auto-send enabled (runs when board is opened each day).");
+                    }}
+                  >
+                    Every Day
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded border px-2 py-1 text-[11px] ${followedSummaryMode === "stop" ? "border-rose-500 text-rose-300" : "border-slate-600 text-slate-100"} hover:bg-slate-800`}
+                    onClick={() => {
+                      setFollowedSummaryMode("stop");
+                      setFollowedSummaryStatus("Auto-send stopped.");
+                    }}
+                  >
+                    Stop
+                  </button>
+                </div>
+                <div className="mt-1 text-[11px] text-slate-400">
+                  {followedSummaryStatus || `Mode: ${followedSummaryMode === "every_day" ? "Every Day" : "Stopped"}`}
+                </div>
+              </div>
               <div className="mt-2 text-[11px] text-slate-400">Saved in this browser only.</div>
             </div>
           ) : null}
@@ -983,11 +1507,11 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     return (
                       <div key={`op-${appointment.id}`}>
                         {appointment.vessel_name}
-                        {" -|- "}
+                        {" | "}
                         COMP OPS: {compactEventValue(timeline, "COMPLETE_OPS")}
-                        {" -|- "}
+                        {" | "}
                         ETD: {compactEventValue(timeline, "ETD")}
-                        {" -|- "}
+                        {" | "}
                         ETA BUNKER: {compactEventValue(timeline, "ETA_BUNKER")}
                       </div>
                     );
@@ -1010,11 +1534,11 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     return (
                       <div key={`port-${appointment.id}`}>
                         {appointment.vessel_name}
-                        {" -|- "}
+                        {" | "}
                         EPOB: {compactEventValue(timeline, "EPOB")}
-                        {" -|- "}
+                        {" | "}
                         ETB: {compactEventValue(timeline, "ETB")}
-                        {" -|- "}
+                        {" | "}
                         ETD: {compactEventValue(timeline, "ETD")}
                       </div>
                     );
@@ -1037,11 +1561,11 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                     return (
                       <div key={`route-${appointment.id}`}>
                         {appointment.vessel_name}
-                        {" -|- "}
+                        {" | "}
                         ETA EOSP: {compactEventValue(timeline, "ETA_OUTER_ROADS")}
-                        {" -|- "}
+                        {" | "}
                         EPOB: {compactEventValue(timeline, "EPOB")}
-                        {" -|- "}
+                        {" | "}
                         ETB: {compactEventValue(timeline, "ETB")}
                       </div>
                     );
@@ -1105,10 +1629,18 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
               const narrative = [portTerminal, cargoSpec, appointedByText].filter(Boolean).join(" | ");
               const shiftReportLink =
                 appointment.shiftreporter_link?.trim() || `/shiftreporter?appointment_id=${appointment.id}`;
+              const lineupEntry = lineupByAppointment[appointment.id];
+              const lineupStamp = lineupEntry?.updated_at
+                ? new Date(lineupEntry.updated_at).toLocaleString()
+                : "";
               const initialChartererAgent = appointment.charterer_agent?.trim() || "-";
               const initialOtherAgents = [appointment.other_agents?.trim() || "", appointment.other_agents_role?.trim() || ""]
                 .filter(Boolean)
                 .join(" | ") || "-";
+              const initialSubAgent =
+                appointment.sub_agent_id && subAgentById[appointment.sub_agent_id]
+                  ? subAgentById[appointment.sub_agent_id]
+                  : "-";
 
               const milestoneCell = (eventType: MilestoneCode) => {
                 const isEditing =
@@ -1208,7 +1740,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                         onKeyDown={(e) => {
                           if (e.key === "Enter") cycleAction(appointment.id, "LINE_UP");
                         }}
-                        title="Open Line Up"
+                        title={lineupStamp ? `Line Up updated: ${lineupStamp}` : "Open Line Up"}
                         className="cursor-pointer rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-center text-[11px] text-slate-300"
                       >
                         {renderActionIcon("LINE_UP", actionValue(appointment.id, "LINE_UP"), appointment)}
@@ -1265,6 +1797,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                           appointmentId={appointment.id}
                           initialChartererAgent={initialChartererAgent}
                           initialOtherAgents={initialOtherAgents}
+                          initialSubAgent={initialSubAgent}
                         />
                         <div className="mt-2 w-full border border-slate-700 bg-slate-900 p-2">
                           <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-green-400">
@@ -1280,15 +1813,6 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                             <button
                               className="text-green-400 hover:text-green-300"
                               onClick={() => {
-                                void handleOpenTool(appointment.id, "running_sof");
-                              }}
-                            >
-                              running sof
-                            </button>
-                            <span>|</span>
-                            <button
-                              className="text-green-400 hover:text-green-300"
-                              onClick={() => {
                                 void handleOpenTool(appointment.id, "husbandry_notes");
                               }}
                             >
@@ -1298,10 +1822,19 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                             <button
                               className="text-green-400 hover:text-green-300"
                               onClick={() => {
-                                void handleOpenTool(appointment.id, "other_services");
+                                void handleOpenTool(appointment.id, "accounting_notes");
                               }}
                             >
-                              notes
+                              accounting notes
+                            </button>
+                            <span>|</span>
+                            <button
+                              className="text-green-400 hover:text-green-300"
+                              onClick={() => {
+                                void handleOpenTool(appointment.id, "commercial_notes");
+                              }}
+                            >
+                              commercial notes
                             </button>
                             <span>|</span>
                             <button
@@ -1310,7 +1843,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                                 void handleOpenTool(appointment.id, "shiftreporter");
                               }}
                             >
-                              shift report
+                              shift report link
                             </button>
                             <span>|</span>
                             <button
@@ -1323,30 +1856,12 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                             </button>
                             <span>|</span>
                             <button
-                              className="italic text-slate-500 hover:text-slate-400"
+                              className="text-green-400 hover:text-green-300"
                               onClick={() => {
-                                void handleOpenTool(appointment.id, "future_box_1");
+                                void handleOpenTool(appointment.id, DPR_TOOL);
                               }}
                             >
-                              FutureBox1
-                            </button>
-                            <span>|</span>
-                            <button
-                              className="italic text-slate-500 hover:text-slate-400"
-                              onClick={() => {
-                                void handleOpenTool(appointment.id, "future_clickable_1");
-                              }}
-                            >
-                              FutureClickable1
-                            </button>
-                            <span>|</span>
-                            <button
-                              className="italic text-slate-500 hover:text-slate-400"
-                              onClick={() => {
-                                void handleOpenTool(appointment.id, "future_clickable_2");
-                              }}
-                            >
-                              FutureClickable2
+                              daily prospect report
                             </button>
                           </div>
 
@@ -1417,38 +1932,262 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                                 >
                                   Add Shift
                                 </button>
+                                <button
+                                  type="button"
+                                  className="rounded border border-cyan-600 px-3 py-1 text-xs text-cyan-300 hover:bg-cyan-950/30"
+                                  onClick={async () => {
+                                    const key = `${appointment.id}:view`;
+                                    try {
+                                      const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
+                                      const viewUrl = toPublicViewUrl(ensuredLink);
+                                      if (!viewUrl) throw new Error("Could not create VIEW link");
+                                      if (typeof window !== "undefined") {
+                                        window.open(viewUrl, "_blank", "noopener,noreferrer");
+                                      }
+                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Opened VIEW" }));
+                                    } catch (error) {
+                                      setShiftLinkStatus((prev) => ({
+                                        ...prev,
+                                        [key]: error instanceof Error ? error.message : "Could not open VIEW",
+                                      }));
+                                    }
+                                  }}
+                                >
+                                  VIEW
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 hover:bg-slate-800"
+                                  onClick={async () => {
+                                    const key = `${appointment.id}:viewcopy`;
+                                    try {
+                                      const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
+                                      const viewUrl = toPublicViewUrl(ensuredLink);
+                                      if (!viewUrl) throw new Error("Could not create VIEW link");
+                                      await navigator.clipboard.writeText(viewUrl);
+                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "VIEW link copied" }));
+                                    } catch {
+                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Copy VIEW link failed" }));
+                                    }
+                                  }}
+                                >
+                                  Copy VIEW Link
+                                </button>
                               </div>
                               <div className="mt-2 text-[11px] text-slate-400">
-                                {shiftLinkStatus[`${appointment.id}:copy`] || shiftLinkStatus[`${appointment.id}:share`] || ""}
+                                {shiftLinkStatus[`${appointment.id}:copy`] ||
+                                  shiftLinkStatus[`${appointment.id}:share`] ||
+                                  shiftLinkStatus[`${appointment.id}:view`] ||
+                                  shiftLinkStatus[`${appointment.id}:viewcopy`] ||
+                                  ""}
                               </div>
                             </div>
                           )}
 
                           {activeAppointment === appointment.id && activeTool !== "shiftreporter" && (
                             <div className="mt-4 w-full border-t border-slate-700 pt-3">
-                              <textarea
-                                rows={20}
-                                className="w-full rounded border border-slate-700 bg-slate-900 p-3 text-slate-200"
-                                style={{
-                                  fontFamily: "Courier New, monospace",
-                                  fontSize: "11px",
-                                }}
-                                value={workspaceTextByKey[workspaceKey(appointment.id, activeTool || "lineup")] || ""}
-                                onChange={(e) => {
-                                  const key = workspaceKey(appointment.id, activeTool || "lineup");
-                                  const nextValue = e.target.value;
-                                  setWorkspaceTextByKey((prev) => ({ ...prev, [key]: nextValue }));
-                                }}
-                                onBlur={() => {
-                                  const tool = activeTool || "lineup";
-                                  const key = workspaceKey(appointment.id, tool);
-                                  void saveWorkspaceNote(
-                                    appointment.id,
-                                    tool,
-                                    workspaceTextByKey[key] || "",
-                                  );
-                                }}
-                              />
+                              {activeTool === "lineup" ? (
+                                <div className="mb-2 text-[11px] text-slate-400">
+                                  {lineupByAppointment[appointment.id]?.updated_at
+                                    ? `Last update: ${new Date(lineupByAppointment[appointment.id].updated_at).toLocaleString()}`
+                                    : "Last update: -"}
+                                </div>
+                              ) : null}
+                              {activeTool === DPR_TOOL ? (
+                                <div className="space-y-3">
+                                  <div>
+                                    <textarea
+                                      rows={3}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      placeholder="Opening sentence..."
+                                      value={dprByAppointment[appointment.id]?.openingSentence || ""}
+                                      onChange={(e) =>
+                                        syncDprDraft(appointment.id, (d) => ({ ...d, openingSentence: e.target.value }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-slate-300">Prospects</label>
+                                    <textarea
+                                      rows={4}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.prospects || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, prospects: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      className="mb-2 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                      onClick={() => {
+                                        void fetchDprSnapshot(appointment.id, "lineUp");
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Fetch Line Up
+                                    </button>
+                                    <textarea
+                                      rows={5}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.lineUp || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, lineUp: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      className="mb-2 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                      onClick={() => {
+                                        void fetchDprSnapshot(appointment.id, "shiftReport");
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Fetch Last Shift report
+                                    </button>
+                                    <textarea
+                                      rows={5}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.shiftReport || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, shiftReport: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      className="mb-2 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                      onClick={() => {
+                                        void fetchDprSnapshot(appointment.id, "stowplan");
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Fetch Stowplan (with draft)
+                                    </button>
+                                    <textarea
+                                      rows={5}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.stowplan || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, stowplan: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      className="mb-2 rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-60"
+                                      onClick={() => {
+                                        void fetchDprSnapshot(appointment.id, "runningSof");
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Fetch Running SOF
+                                    </button>
+                                    <textarea
+                                      rows={7}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.runningSof || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, runningSof: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-xs text-slate-300">NOTE</label>
+                                    <textarea
+                                      rows={5}
+                                      className="w-full rounded border border-slate-700 bg-slate-900 p-2 text-slate-200"
+                                      value={dprByAppointment[appointment.id]?.note || ""}
+                                      onChange={(e) => syncDprDraft(appointment.id, (d) => ({ ...d, note: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <select
+                                      className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                                      value={dprBatchByAppointment[appointment.id] || "principal_dpr"}
+                                      onChange={(e) =>
+                                        setDprBatchByAppointment((prev) => ({
+                                          ...prev,
+                                          [appointment.id]: e.target.value as DprBatch,
+                                        }))
+                                      }
+                                    >
+                                      <option value="cgnees_shippers_terminal">Cgnees / Shippers / Terminal</option>
+                                      <option value="charterers_agent">Charterer&apos;s Agent</option>
+                                      <option value="principal_dpr">Principal DPR</option>
+                                      <option value="dpr_for_1">DPR for -name- #1</option>
+                                      <option value="dpr_for_2">DPR for -name- #2</option>
+                                      <option value="dpr_for_3">DPR for -name- #3</option>
+                                      <option value="all">All</option>
+                                    </select>
+                                    <input
+                                      className="min-w-[520px] flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-100"
+                                      placeholder={
+                                        (dprBatchByAppointment[appointment.id] || "principal_dpr") === "all"
+                                          ? "All uses the union of all group email lists"
+                                          : "email1@x.com, email2@x.com, email3@x.com"
+                                      }
+                                      disabled={(dprBatchByAppointment[appointment.id] || "principal_dpr") === "all"}
+                                      value={(() => {
+                                        const draft = dprByAppointment[appointment.id] || emptyDprDraft();
+                                        const selected = dprBatchByAppointment[appointment.id] || "principal_dpr";
+                                        if (selected === "all") return "";
+                                        return draft.recipients[selected];
+                                      })()}
+                                      onChange={(e) => {
+                                        const selected = dprBatchByAppointment[appointment.id] || "principal_dpr";
+                                        if (selected === "all") return;
+                                        syncDprDraft(appointment.id, (d) => ({
+                                          ...d,
+                                          recipients: { ...d.recipients, [selected]: e.target.value },
+                                        }));
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-500"
+                                      onClick={() => {
+                                        void generateDprEmail(appointment.id);
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Generate Email
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rounded border border-cyan-500 px-3 py-1 text-xs text-cyan-300 hover:bg-cyan-950/30"
+                                      onClick={() => {
+                                        void generateDprEml(appointment.id);
+                                      }}
+                                      disabled={!!dprBusyByAppointment[appointment.id]}
+                                    >
+                                      Generate Outlook Draft (.eml)
+                                    </button>
+                                  </div>
+                                  <div className="text-[11px] text-slate-400">
+                                    {dprStatusByAppointment[appointment.id] || ""}
+                                  </div>
+                                </div>
+                              ) : (
+                                <textarea
+                                  rows={20}
+                                  className="w-full rounded border border-slate-700 bg-slate-900 p-3 text-slate-200"
+                                  style={{
+                                    fontFamily: "Courier New, monospace",
+                                    fontSize: "11px",
+                                  }}
+                                  value={workspaceTextByKey[workspaceKey(appointment.id, activeTool || "lineup")] || ""}
+                                  onChange={(e) => {
+                                    const key = workspaceKey(appointment.id, activeTool || "lineup");
+                                    const nextValue = e.target.value;
+                                    setWorkspaceTextByKey((prev) => ({ ...prev, [key]: nextValue }));
+                                  }}
+                                  onBlur={() => {
+                                    const tool = activeTool || "lineup";
+                                    const key = workspaceKey(appointment.id, tool);
+                                    void saveWorkspaceNote(
+                                      appointment.id,
+                                      tool,
+                                      workspaceTextByKey[key] || "",
+                                    );
+                                  }}
+                                />
+                              )}
                             </div>
                           )}
                         </div>

@@ -10,6 +10,7 @@ export function filterAppointments(
     Appointment & {
       etd_ata?: string | null;
       epob_ata?: string | null;
+      complete_ops_ata?: string | null;
       followed_by_user?: boolean | null;
     }
   >;
@@ -37,6 +38,10 @@ export function filterAppointments(
 
   if (view === "sailed") {
     return withFlags.filter((a) => !!a.etd_ata || a.status === "CLOSED" || a.status === "SAILED");
+  }
+
+  if (view === "checklist_pending") {
+    return withFlags.filter((a) => !!a.etd_ata && !a.complete_ops_ata);
   }
 
   if (view === "tdytomo") {

@@ -5,30 +5,6 @@ const isDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(String(value || "").trim());
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function authorizeAdmin(req: NextRequest) {
-  const admin = supabaseAdmin();
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-
-  const {
-    data: { user },
-    error: userError,
-  } = await admin.auth.getUser(token);
-  if (userError || !user) {
-    return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || String(profile.role) !== "admin") {
-    return {
-      admin,
-      error: NextResponse.json({ error: "Only Admin can edit running SOF events" }, { status: 403 }),
-    };
-  }
-
-  return { admin, error: null as NextResponse | null };
-}
-
 async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam: string) {
   if (UUID_REGEX.test(idParam)) {
     const { data: byUuid, error: byUuidError } = await admin
@@ -70,8 +46,7 @@ export async function PATCH(
 ) {
   try {
     const { id: idParam, eventId } = await params;
-    const { admin, error } = await authorizeAdmin(req);
-    if (error) return error;
+    const admin = supabaseAdmin();
 
     const vesselId = await resolveVesselId(admin, idParam);
     if (!vesselId) return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
@@ -85,7 +60,7 @@ export async function PATCH(
     const reason = String(body?.reason || "").trim();
 
     if (!reason) {
-      return NextResponse.json({ error: "Reason is required" }, { status: 400 });
+      return NextResponse.json({ error: "Event is required" }, { status: 400 });
     }
     if (!from || !isDateTime(from)) {
       return NextResponse.json({ error: "FROM must be YYYY-MM-DDTHH:MM[:SS]" }, { status: 400 });
@@ -117,8 +92,7 @@ export async function DELETE(
 ) {
   try {
     const { id: idParam, eventId } = await params;
-    const { admin, error } = await authorizeAdmin(req);
-    if (error) return error;
+    const admin = supabaseAdmin();
 
     const vesselId = await resolveVesselId(admin, idParam);
     if (!vesselId) return NextResponse.json({ error: "Vessel not found" }, { status: 404 });

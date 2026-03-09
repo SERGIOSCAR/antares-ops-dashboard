@@ -1,6 +1,6 @@
 "use client";
 
-export type View = "board" | "my" | "followed" | "inport" | "active" | "sailed" | "tdytomo";
+export type View = "board" | "my" | "followed" | "inport" | "active" | "sailed" | "checklist_pending" | "tdytomo";
 
 type Props = {
   current: View;
@@ -14,6 +14,7 @@ const views: Array<{ id: View; label: string }> = [
   { id: "inport", label: "In Port" },
   { id: "active", label: "All Active" },
   { id: "sailed", label: "All Sailed" },
+  { id: "checklist_pending", label: "Pending Checklist" },
   { id: "tdytomo", label: "Tdy & Tomo" },
   { id: "board", label: "Summary" },
 ];
