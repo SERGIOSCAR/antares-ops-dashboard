@@ -5,30 +5,6 @@ const isDateTime = (value: string) =>
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(String(value || "").trim());
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function authorizeAdmin(req: NextRequest) {
-  const admin = supabaseAdmin();
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-
-  const {
-    data: { user },
-    error: userError,
-  } = await admin.auth.getUser(token);
-  if (userError || !user) {
-    return { admin, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || String(profile.role) !== "admin") {
-    return {
-      admin,
-      error: NextResponse.json({ error: "Only Admin can edit running SOF events" }, { status: 403 }),
-    };
-  }
-
-  return { admin, error: null as NextResponse | null };
-}
-
 async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam: string) {
   if (UUID_REGEX.test(idParam)) {
     const { data: byUuid, error: byUuidError } = await admin
@@ -51,11 +27,46 @@ async function resolveVesselId(admin: ReturnType<typeof supabaseAdmin>, idParam:
   return null;
 }
 
+async function resolveShiftIdForEvent(
+  admin: ReturnType<typeof supabaseAdmin>,
+  vesselId: string,
+  from: string,
+  requestedShiftId: string
+) {
+  if (requestedShiftId) {
+    const { data: shift } = await admin
+      .from("shift_reports")
+      .select("id, vessel_id")
+      .eq("id", requestedShiftId)
+      .maybeSingle();
+    if (shift && String(shift.vessel_id) === vesselId) return String(shift.id);
+  }
+
+  const { data: matchingShift } = await admin
+    .from("shift_reports")
+    .select("id")
+    .eq("vessel_id", vesselId)
+    .lte("shift_start", from)
+    .gte("shift_end", from)
+    .order("shift_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (matchingShift) return String(matchingShift.id);
+
+  const { data: latestShift } = await admin
+    .from("shift_reports")
+    .select("id")
+    .eq("vessel_id", vesselId)
+    .order("shift_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return latestShift ? String(latestShift.id) : null;
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: idParam } = await params;
-    const { admin, error } = await authorizeAdmin(req);
-    if (error) return error;
+    const admin = supabaseAdmin();
 
     const vesselId = await resolveVesselId(admin, idParam);
     if (!vesselId) return NextResponse.json({ error: "Vessel not found" }, { status: 404 });
@@ -66,8 +77,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const to = String(body?.to || "").trim();
     const reason = String(body?.reason || "").trim();
 
-    if (!shiftId || !from || !reason) {
-      return NextResponse.json({ error: "shiftId, from and reason are required" }, { status: 400 });
+    if (!from || !reason) {
+      return NextResponse.json({ error: "from and event are required" }, { status: 400 });
     }
     if (!isDateTime(from)) {
       return NextResponse.json({ error: "FROM must be YYYY-MM-DDTHH:MM[:SS]" }, { status: 400 });
@@ -76,18 +87,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "TO must be YYYY-MM-DDTHH:MM[:SS]" }, { status: 400 });
     }
 
-    const { data: shift } = await admin
-      .from("shift_reports")
-      .select("id, vessel_id")
-      .eq("id", shiftId)
-      .single();
-
-    if (!shift || String(shift.vessel_id) !== vesselId) {
-      return NextResponse.json({ error: "Shift does not belong to this vessel" }, { status: 400 });
-    }
+    const resolvedShiftId = await resolveShiftIdForEvent(admin, vesselId, from, shiftId);
+    if (!resolvedShiftId) return NextResponse.json({ error: "No shift found for this vessel" }, { status: 400 });
 
     const { error: insertError } = await admin.from("shift_delays").insert({
-      shift_id: shiftId,
+      shift_id: resolvedShiftId,
       from_time: from,
       to_time: to || null,
       reason,

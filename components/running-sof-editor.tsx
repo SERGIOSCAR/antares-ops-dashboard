@@ -1,20 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 
 type RunningSofEvent = {
   id: string;
-  shiftId: string;
   from: string;
   to: string;
   reason: string;
-};
-
-type ShiftOption = {
-  id: string;
-  label: string;
 };
 
 type RowState = RunningSofEvent & {
@@ -38,11 +31,9 @@ function fromInputDateTime(value: string) {
 export default function RunningSofEditor({
   vesselId,
   events,
-  shiftOptions,
 }: {
   vesselId: string;
   events: RunningSofEvent[];
-  shiftOptions: ShiftOption[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<RowState[]>(events);
@@ -50,7 +41,6 @@ export default function RunningSofEditor({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<{ from: string; reason: string }>({ from: "", reason: "" });
   const [newRow, setNewRow] = useState({
-    shiftId: shiftOptions[0]?.id || "",
     from: "",
     to: "",
     reason: "",
@@ -59,26 +49,18 @@ export default function RunningSofEditor({
   const fieldClass =
     "w-full touch-manipulation rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  const withToken = async () => {
-    const supabase = supabaseBrowser();
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || "";
-  };
-
   const saveRow = async (row: RowState) => {
     if (!row.reason.trim()) {
-      alert("Reason is required.");
+      alert("Event is required.");
       return;
     }
 
     setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, saving: true } : r)));
     try {
-      const token = await withToken();
       const res = await fetch(`/api/shiftreporter/vessels/${vesselId}/running-sof-events/${row.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           from: fromInputDateTime(row.from),
@@ -104,12 +86,8 @@ export default function RunningSofEditor({
 
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, deleting: true } : r)));
     try {
-      const token = await withToken();
       const res = await fetch(`/api/shiftreporter/vessels/${vesselId}/running-sof-events/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "Failed to delete event");
@@ -124,22 +102,19 @@ export default function RunningSofEditor({
   };
 
   const addRow = async () => {
-    if (!newRow.shiftId || !newRow.from || !newRow.reason.trim()) {
-      alert("Shift, FROM and reason are required.");
+    if (!newRow.from || !newRow.reason.trim()) {
+      alert("FROM and event are required.");
       return;
     }
 
     setAdding(true);
     try {
-      const token = await withToken();
       const res = await fetch(`/api/shiftreporter/vessels/${vesselId}/running-sof-events`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          shiftId: newRow.shiftId,
           from: fromInputDateTime(newRow.from),
           to: newRow.to ? fromInputDateTime(newRow.to) : "",
           reason: newRow.reason.trim(),
@@ -178,24 +153,10 @@ export default function RunningSofEditor({
   return (
     <div className="mt-3 rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
       <h3 className="mb-3 text-lg font-semibold text-slate-100">Running SOF Editor</h3>
-      <p className="mb-3 text-xs text-slate-400">Admin can add, edit, or delete any running SOF event.</p>
+      <p className="mb-3 text-xs text-slate-400">Anyone with access can add, edit, or delete running SOF events.</p>
 
       <div className="mb-3 grid grid-cols-12 items-end gap-2 rounded border border-slate-700 p-3">
-        <div className="col-span-3">
-          <label className="mb-1 block text-xs text-slate-400">Shift</label>
-          <select
-            value={newRow.shiftId}
-            onChange={(e) => setNewRow((prev) => ({ ...prev, shiftId: e.target.value }))}
-            className={fieldClass}
-          >
-            {shiftOptions.map((opt) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="col-span-3">
+        <div className="col-span-12 md:col-span-2">
           <label className="mb-1 block text-xs text-slate-400">From</label>
           <input
             type="datetime-local"
@@ -204,7 +165,7 @@ export default function RunningSofEditor({
             className={fieldClass}
           />
         </div>
-        <div className="col-span-3">
+        <div className="col-span-12 md:col-span-2">
           <label className="mb-1 block text-xs text-slate-400">To</label>
           <input
             type="datetime-local"
@@ -213,8 +174,8 @@ export default function RunningSofEditor({
             className={fieldClass}
           />
         </div>
-        <div className="col-span-2">
-          <label className="mb-1 block text-xs text-slate-400">Reason</label>
+        <div className="col-span-12 md:col-span-7">
+          <label className="mb-1 block text-xs text-slate-400">Event</label>
           <input
             type="text"
             value={newRow.reason}
@@ -226,7 +187,7 @@ export default function RunningSofEditor({
           type="button"
           onClick={addRow}
           disabled={adding}
-          className="col-span-1 min-h-[44px] rounded bg-zinc-900 px-2 py-2 text-sm text-white disabled:opacity-50"
+          className="col-span-12 min-h-[44px] rounded bg-zinc-900 px-2 py-2 text-sm text-white disabled:opacity-50 md:col-span-1"
         >
           {adding ? "..." : "Add"}
         </button>

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { PREDEFINED_EVENTS } from "@/lib/event-options";
@@ -58,6 +58,7 @@ export default function ShiftForm({
   
   // Simplified date and shift selection
   const [reportDate, setReportDate] = useState("");
+  const reportDateRef = useRef<HTMLInputElement | null>(null);
   const [shiftType, setShiftType] = useState<string>("");
   
   const [notes, setNotes] = useState("");
@@ -478,12 +479,33 @@ export default function ShiftForm({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Report Date</label>
-            <input
-              type="date"
-              value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-              className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                ref={reportDateRef}
+                type="date"
+                value={reportDate}
+                onChange={(e) => setReportDate(e.target.value)}
+                onFocus={() => {
+                  const input = reportDateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+                  if (input?.showPicker) input.showPicker();
+                }}
+                className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                className="min-h-[44px] rounded border border-slate-600 px-3 text-sm text-slate-200 hover:bg-slate-800"
+                onClick={() => {
+                  const input = reportDateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+                  if (input?.showPicker) {
+                    input.showPicker();
+                  } else {
+                    input?.focus();
+                  }
+                }}
+              >
+                Calendar
+              </button>
+            </div>
           </div>
 
           <div>
