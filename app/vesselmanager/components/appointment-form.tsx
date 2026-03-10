@@ -596,19 +596,31 @@ export default function AppointmentForm({
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-slate-700">
-          <table className="w-full min-w-[1400px] text-sm">
-            <thead className="bg-slate-900 text-slate-300">
+          <table className="w-full min-w-[1180px] text-[11px] leading-tight">
+            <colgroup>
+              <col className="w-[20%]" />
+              <col className="w-[16%]" />
+              <col className="w-[19%]" />
+              <col className="w-[8%]" />
+              <col className="w-[8%]" />
+              <col className="w-[5.8%]" />
+              <col className="w-[5.8%]" />
+              <col className="w-[5.8%]" />
+              <col className="w-[5.8%]" />
+              <col className="w-[7.8%]" />
+            </colgroup>
+            <thead className="bg-slate-900 text-[10px] uppercase tracking-wide text-slate-300">
               <tr>
-                <th className="px-2 py-2 text-left">Service</th>
-                <th className="px-2 py-2 text-left">Supplier</th>
-                <th className="px-2 py-2 text-left">Supplier Emails</th>
-                <th className="px-2 py-2 text-left">IN</th>
-                <th className="px-2 py-2 text-left">OUT</th>
-                <th className="px-2 py-2 text-center">ETA EOSP</th>
-                <th className="px-2 py-2 text-center">EPOB</th>
-                <th className="px-2 py-2 text-center">ETB</th>
-                <th className="px-2 py-2 text-center">ETD</th>
-                <th className="px-2 py-2 text-center">ETA BUNKER</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Service</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Supplier</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Supplier Emails</th>
+                <th className="px-2 py-1.5 text-left font-semibold">In</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Out</th>
+                <th className="px-1 py-1.5 text-center font-semibold whitespace-normal">ETA EOSP</th>
+                <th className="px-1 py-1.5 text-center font-semibold whitespace-normal">EPOB</th>
+                <th className="px-1 py-1.5 text-center font-semibold whitespace-normal">ETB</th>
+                <th className="px-1 py-1.5 text-center font-semibold whitespace-normal">ETD</th>
+                <th className="px-1 py-1.5 text-center font-semibold whitespace-normal">ETA BUNKER</th>
               </tr>
             </thead>
             <tbody>
@@ -617,19 +629,19 @@ export default function AppointmentForm({
                 const isQtyStyle = !!template?.qty_style;
                 const isCustom = !template;
                 return (
-                <tr key={`${line.service_name}-${index}`} className="border-t border-slate-700 bg-slate-800">
-                  <td className="px-2 py-2">
+                <tr key={`${line.service_name}-${index}`} className="border-t border-slate-700 bg-slate-800 text-[11px]">
+                  <td className="px-2 py-1.5">
                     {isCustom ? (
                       <div className="flex items-center gap-2">
                         <input
-                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1"
+                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px]"
                           value={line.service_name || ""}
                           onChange={(e) => updateEtaLine(index, { service_name: e.target.value })}
                           placeholder="Service name"
                         />
                         <button
                           type="button"
-                          className="rounded border border-red-700 px-2 py-1 text-xs text-red-300 hover:bg-red-950/40"
+                          className="rounded border border-red-700 px-2 py-1 text-[10px] text-red-300 hover:bg-red-950/40"
                           onClick={() => removeEtaLine(index)}
                         >
                           X
@@ -639,9 +651,9 @@ export default function AppointmentForm({
                       line.service_name
                     )}
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-1.5">
                     <input
-                      className="w-[220px] rounded border border-slate-600 bg-slate-900 px-2 py-1"
+                      className="w-[190px] rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px]"
                       value={line.supplier_name || ""}
                       onChange={(e) => updateEtaLine(index, { supplier_name: e.target.value })}
                       onBlur={(e) => rememberSupplier(e.target.value)}
@@ -649,22 +661,22 @@ export default function AppointmentForm({
                       placeholder="Supplier name"
                     />
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-1.5">
                     <input
-                      className="w-[240px] rounded border border-slate-600 bg-slate-900 px-2 py-1"
+                      className="w-[210px] rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px]"
                       value={line.supplier_emails || ""}
                       onChange={(e) => updateEtaLine(index, { supplier_emails: e.target.value })}
                       placeholder="emails comma separated"
                     />
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-1.5">
                     {isQtyStyle ? (
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
                           min={0}
                           max={9}
-                          className="w-14 rounded border border-slate-600 bg-slate-900 px-2 py-1"
+                          className="w-12 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px]"
                           value={line.in_qty ?? 0}
                           onChange={(e) => {
                             const qty = Number(String(e.target.value || "0").slice(0, 1));
@@ -683,14 +695,14 @@ export default function AppointmentForm({
                       />
                     )}
                   </td>
-                  <td className="px-2 py-2">
+                  <td className="px-2 py-1.5">
                     {isQtyStyle ? (
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
                           min={0}
                           max={9}
-                          className="w-14 rounded border border-slate-600 bg-slate-900 px-2 py-1"
+                          className="w-12 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-[11px]"
                           value={line.out_qty ?? 0}
                           onChange={(e) => {
                             const qty = Number(String(e.target.value || "0").slice(0, 1));
@@ -709,35 +721,35 @@ export default function AppointmentForm({
                       />
                     )}
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1 py-1.5 text-center">
                     <input
                       type="checkbox"
                       checked={!!line.trigger_eta_eosp}
                       onChange={(e) => updateEtaLine(index, { trigger_eta_eosp: e.target.checked })}
                     />
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1 py-1.5 text-center">
                     <input
                       type="checkbox"
                       checked={!!line.trigger_epob}
                       onChange={(e) => updateEtaLine(index, { trigger_epob: e.target.checked })}
                     />
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1 py-1.5 text-center">
                     <input
                       type="checkbox"
                       checked={!!line.trigger_etb}
                       onChange={(e) => updateEtaLine(index, { trigger_etb: e.target.checked })}
                     />
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1 py-1.5 text-center">
                     <input
                       type="checkbox"
                       checked={!!line.trigger_etd}
                       onChange={(e) => updateEtaLine(index, { trigger_etd: e.target.checked })}
                     />
                   </td>
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-1 py-1.5 text-center">
                     <input
                       type="checkbox"
                       checked={!!line.trigger_eta_bunker}
