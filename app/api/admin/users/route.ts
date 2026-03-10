@@ -65,15 +65,26 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = userData.user.id;
-    const { error: profileInsertError } = await admin.from("profiles").insert({
-      id: userId,
-      username,
-      role,
-    });
+    const { error: profileInsertError } = await admin
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          username,
+          role,
+        },
+        { onConflict: "id" },
+      );
 
     if (profileInsertError) {
       await admin.auth.admin.deleteUser(userId);
-      return NextResponse.json({ error: profileInsertError.message }, { status: 500 });
+      const message = profileInsertError.message || "Failed to create user profile";
+      const duplicateUsername =
+        profileInsertError.code === "23505" && message.toLowerCase().includes("username");
+      return NextResponse.json(
+        { error: duplicateUsername ? "Username already exists" : message },
+        { status: duplicateUsername ? 400 : 500 },
+      );
     }
 
     return NextResponse.json({ success: true, userId });
