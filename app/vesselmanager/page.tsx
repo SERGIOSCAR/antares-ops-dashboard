@@ -8,12 +8,14 @@ async function fetchAppointmentsServer(): Promise<Appointment[]> {
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
+  const cookie = h.get("cookie");
 
   if (!host) return [];
 
   const baseUrl = `${proto}://${host}`;
   const res = await fetch(`${baseUrl}/api/vesselmanager/appointments`, {
     cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
   });
 
   if (!res.ok) {
