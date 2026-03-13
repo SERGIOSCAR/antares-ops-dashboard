@@ -22,19 +22,27 @@ const views: Array<{ id: View; label: string }> = [
 export default function ViewSelector({ current, onChange, counts }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
-      {views.map((v) => (
-        <button
-          key={v.id}
-          onClick={() => onChange(v.id)}
-          className={`rounded px-3 py-1 text-sm ${
-            current === v.id
-              ? "bg-blue-600 text-white"
-              : "bg-slate-800 text-slate-300"
-          }`}
-        >
-          {v.label} ({counts[v.id]})
-        </button>
-      ))}
+      {views.map((v) => {
+        const isSummary = v.id === "board";
+        const className =
+          current === v.id
+            ? isSummary
+              ? "bg-blue-600 text-yellow-300"
+              : "bg-blue-600 text-white"
+            : isSummary
+              ? "bg-slate-800 text-yellow-300"
+              : "bg-slate-800 text-slate-300";
+
+        return (
+          <button
+            key={v.id}
+            onClick={() => onChange(v.id)}
+            className={`rounded px-3 py-1 text-sm ${className}`}
+          >
+            {v.label} ({counts[v.id]})
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -11,15 +11,18 @@ type Props = {
   initialRecipients?: unknown[];
   initialServiceChecklistAta?: string | null;
   initialEtaNotice?: EtaNoticeSettings;
+  returnTo?: string;
 };
 
 const appointedForOptions = [
   "OPA",
   "FULL",
-  "CHARTERER'S AGENT",
+  "CHARTAGENT",
   "HUSBANDRY",
   "HOLDS",
-  "OTHER (SPECIFIED BELOW)",
+  "FUNDING",
+  "SALVAGE",
+  "OTHER (see Other Appointments)",
 ];
 
 function digitsOnly(input: string, maxLen: number) {
@@ -93,6 +96,7 @@ export default function AppointmentForm({
   initialRecipients,
   initialServiceChecklistAta,
   initialEtaNotice,
+  returnTo = "/vesselmanager",
 }: Props) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -117,6 +121,14 @@ export default function AppointmentForm({
   const [form, setForm] = useState({
     vessel_name: initialAppointment?.vessel_name ?? "",
     port: initialAppointment?.port ?? "",
+    nomination_received_on: initialAppointment?.nomination_received_on ?? "",
+    accounting_reference: initialAppointment?.accounting_reference ?? "",
+    pda_sent_on: initialAppointment?.pda_sent_on ?? "",
+    pda_not_required: initialAppointment?.pda_not_required ?? false,
+    ada_created_on: initialAppointment?.ada_created_on ?? "",
+    ada_sent_on: initialAppointment?.ada_sent_on ?? "",
+    fda_created_on: initialAppointment?.fda_created_on ?? "",
+    fda_sent_on: initialAppointment?.fda_sent_on ?? "",
     terminal: initialAppointment?.terminal ?? "",
     cargo_operation: initialAppointment?.cargo_operation ?? "",
     cargo_grade: initialAppointment?.cargo_grade ?? "",
@@ -246,12 +258,28 @@ export default function AppointmentForm({
       setError("Vessel name is required.");
       return;
     }
+    if (!form.port.trim()) {
+      setError("Port is required.");
+      return;
+    }
+    if (!form.nomination_received_on) {
+      setError("Date of appointment is required.");
+      return;
+    }
 
     setIsSaving(true);
     try {
       const payload = {
         vessel_name: form.vessel_name.trim(),
         port: form.port || null,
+        nomination_received_on: form.nomination_received_on,
+        accounting_reference: form.accounting_reference.trim() || null,
+        pda_sent_on: form.pda_sent_on || null,
+        pda_not_required: !!form.pda_not_required,
+        ada_created_on: form.ada_created_on || null,
+        ada_sent_on: form.ada_sent_on || null,
+        fda_created_on: form.fda_created_on || null,
+        fda_sent_on: form.fda_sent_on || null,
         terminal: form.terminal || null,
         cargo_operation: form.cargo_operation || null,
         cargo_grade: form.cargo_grade || null,
@@ -314,7 +342,7 @@ export default function AppointmentForm({
         }
       }
 
-      router.push("/vesselmanager");
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save appointment");
@@ -328,13 +356,26 @@ export default function AppointmentForm({
       <div className={card}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-100">Appointment Core</h2>
-          <div className="text-right text-xs text-slate-400">
-            <div className="uppercase tracking-wide">Appointment Timestamp</div>
-            <div className="text-slate-300">
-              {mode === "create"
-                ? "Auto-generated on create"
-                : formatTimestamp(initialAppointment?.created_at) || "Auto-generated"}
-            </div>
+          <div className="w-full max-w-xs space-y-3">
+            <label className={`${label} block text-left`}>
+              Date of Appointment *
+              <input
+                type="date"
+                className={input}
+                value={form.nomination_received_on}
+                onChange={(e) => updateField("nomination_received_on", e.target.value)}
+              />
+            </label>
+            <label className={`${label} block text-left`}>
+              Accounting Reference
+              <input
+                className={input}
+                value={form.accounting_reference}
+                readOnly
+                disabled
+                placeholder="Assigned in D/A Manager"
+              />
+            </label>
           </div>
         </div>
 
@@ -776,12 +817,12 @@ export default function AppointmentForm({
           type="submit"
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-60"
         >
-          {isSaving ? "Saving..." : mode === "create" ? "Create Appointment" : "Save Changes"}
+          {isSaving ? "Saving..." : mode === "create" ? "Create Appointment" : "Save & Return"}
         </button>
         <button
           type="button"
           className="rounded-md border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
-          onClick={() => router.push("/vesselmanager")}
+          onClick={() => router.push(returnTo)}
         >
           Cancel
         </button>

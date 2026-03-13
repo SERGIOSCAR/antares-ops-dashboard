@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import AppointmentForm from "@/app/vesselmanager/components/appointment-form";
+import AppointmentDocumentsPanel from "@/app/vesselmanager/components/appointment-documents-panel";
 import VesselManagerBrand from "@/app/vesselmanager/components/vesselmanager-brand";
 import type { Appointment, AppointmentRecipient, AppointmentTimelineRow, EtaNoticeSettings } from "@/lib/vesselmanager/types";
 
@@ -14,9 +15,13 @@ async function fetchAppointment(id: string): Promise<{
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
+  const cookie = h.get("cookie");
   if (!host) return { error: "Missing host" };
 
-  const res = await fetch(`${proto}://${host}/api/vesselmanager/appointments/${id}`, { cache: "no-store" });
+  const res = await fetch(`${proto}://${host}/api/vesselmanager/appointments/${id}`, {
+    cache: "no-store",
+    headers: cookie ? { cookie } : undefined,
+  });
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     return { error: json.error || "Failed to load appointment" };
@@ -41,10 +46,17 @@ async function fetchAppointment(id: string): Promise<{
 
 export default async function EditAppointmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ return_to?: string }>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const returnTo =
+    resolvedSearchParams?.return_to && resolvedSearchParams.return_to.startsWith("/") && !resolvedSearchParams.return_to.startsWith("//")
+      ? resolvedSearchParams.return_to
+      : "/vesselmanager";
   const { appointment, recipients, timeline, eta_notice, error } = await fetchAppointment(id);
   const serviceChecklistAta = timeline?.find((row) => row.event_type === "COMPLETE_OPS")?.ata || null;
 
@@ -58,7 +70,7 @@ export default async function EditAppointmentPage({
         <div className="hidden flex-1 justify-center md:flex">
           <VesselManagerBrand />
         </div>
-        <Link href="/vesselmanager" className="text-sm text-blue-400 hover:underline">
+        <Link href={returnTo} className="text-sm text-blue-400 hover:underline">
           Back to Board
         </Link>
       </div>
@@ -68,14 +80,18 @@ export default async function EditAppointmentPage({
           {error || "Appointment not found."}
         </div>
       ) : (
-        <AppointmentForm
-          mode="edit"
-          appointmentId={id}
-          initialAppointment={appointment}
-          initialRecipients={recipients}
-          initialServiceChecklistAta={serviceChecklistAta}
-          initialEtaNotice={eta_notice || undefined}
-        />
+        <div className="space-y-5">
+          <AppointmentForm
+            mode="edit"
+            appointmentId={id}
+            initialAppointment={appointment}
+            initialRecipients={recipients}
+            initialServiceChecklistAta={serviceChecklistAta}
+            initialEtaNotice={eta_notice || undefined}
+            returnTo={returnTo}
+          />
+          <AppointmentDocumentsPanel appointmentId={id} />
+        </div>
       )}
     </main>
   );

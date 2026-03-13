@@ -18,7 +18,7 @@ export default function CreateAppointmentPage() {
         </Link>
       </div>
 
-      <AppointmentForm mode="create" />
+      <AppointmentForm mode="create" returnTo="/vesselmanager" />
     </main>
   );
 }

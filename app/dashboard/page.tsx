@@ -1,6 +1,7 @@
 export default function DashboardPage() {
   const apps = [
     { name: "Vessel Manager", href: "/vesselmanager" },
+    { name: "D/A Manager", href: "/disbursementmanager" },
     { name: "ShiftReporter", href: "/shiftreporter" },
     { name: "LineUp", href: "/lineup" },
     { name: "Hydro Outlook", href: "/hydro" },
