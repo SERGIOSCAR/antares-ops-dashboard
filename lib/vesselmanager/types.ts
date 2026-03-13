@@ -28,6 +28,15 @@ export type Appointment = {
   notify_eta_agents_terminals: boolean | null;
   notify_none: boolean | null;
   needs_daily_prospect: boolean | null;
+  accounting_reference?: string | null;
+  nomination_received_on?: string | null;
+  roe?: number | null;
+  pda_sent_on?: string | null;
+  pda_not_required?: boolean | null;
+  ada_created_on?: string | null;
+  ada_sent_on?: string | null;
+  fda_created_on?: string | null;
+  fda_sent_on?: string | null;
   status: AppointmentStatus;
   created_by: string | null;
   created_at: string;
@@ -96,6 +105,14 @@ export type CreateAppointmentInput = {
   notify_eta_agents_terminals?: boolean;
   notify_none?: boolean;
   needs_daily_prospect?: boolean;
+  accounting_reference?: string;
+  nomination_received_on?: string;
+  pda_sent_on?: string;
+  pda_not_required?: boolean;
+  ada_created_on?: string;
+  ada_sent_on?: string;
+  fda_created_on?: string;
+  fda_sent_on?: string;
   status?: AppointmentStatus;
   recipients?: AppointmentRecipient[];
   eta_notice?: EtaNoticeSettings;
@@ -142,5 +159,20 @@ export type CreateTimelineInput = {
   ata?: string;
   event_date?: string | null;
   event_time_text?: string | null;
+};
+
+export type AppointmentDocumentType = "SOF" | "ITC" | "SHIP_PART" | "OTHER_DOX";
+
+export type AppointmentDocument = {
+  id: string;
+  appointment_id: string;
+  document_type: AppointmentDocumentType;
+  file_name: string;
+  storage_bucket: string;
+  storage_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+  uploaded_by: string | null;
+  created_at: string;
 };
 

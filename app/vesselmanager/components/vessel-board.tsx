@@ -22,6 +22,7 @@ import type { Appointment, AppointmentTimelineRow, TimelineEventCode } from "@/l
 import { parseOperationalInput, toOperationalIso } from "@/lib/vesselmanager/parse-operational-time";
 import { filterAppointments } from "@/lib/vesselmanager/viewFilter";
 import TimelinePanel from "./timeline-panel";
+import AppointmentDocumentsPanel from "./appointment-documents-panel";
 import ViewSelector, { type View } from "./ViewSelector";
 import { Clock, AlertTriangle, CheckCircle, ArrowRight, Anchor, Ship, Check, BellOff, CircleParking, CircleCheckBig } from "lucide-react";
 
@@ -714,10 +715,12 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
       | "accounting_notes"
       | "commercial_notes"
       | "shiftreporter"
+      | "documents"
       | "daily_prospect_report",
   ) => {
     setActiveAppointment(appointmentId);
     setActiveTool(tool);
+    if (tool === "documents") return;
     const key = workspaceKey(appointmentId, tool);
     if (!loadedWorkspaceKeys[key]) {
       try {
@@ -1800,7 +1803,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                           initialSubAgent={initialSubAgent}
                         />
                         <div className="mt-2 w-full border border-slate-700 bg-slate-900 p-2">
-                          <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-green-400">
+                          <div className="mb-2 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm text-green-400">
                             <button
                               className="text-green-400 hover:text-green-300"
                               onClick={() => {
@@ -1844,6 +1847,15 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                               }}
                             >
                               shift report link
+                            </button>
+                            <span>|</span>
+                            <button
+                              className="text-green-400 hover:text-green-300"
+                              onClick={() => {
+                                void handleOpenTool(appointment.id, "documents");
+                              }}
+                            >
+                              documents
                             </button>
                             <span>|</span>
                             <button
@@ -1986,6 +1998,9 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
 
                           {activeAppointment === appointment.id && activeTool !== "shiftreporter" && (
                             <div className="mt-4 w-full border-t border-slate-700 pt-3">
+                              {activeTool === "documents" ? (
+                                <AppointmentDocumentsPanel appointmentId={appointment.id} />
+                              ) : null}
                               {activeTool === "lineup" ? (
                                 <div className="mb-2 text-[11px] text-slate-400">
                                   {lineupByAppointment[appointment.id]?.updated_at
@@ -2163,7 +2178,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                                     {dprStatusByAppointment[appointment.id] || ""}
                                   </div>
                                 </div>
-                              ) : (
+                              ) : activeTool === "documents" ? null : (
                                 <textarea
                                   rows={20}
                                   className="w-full rounded border border-slate-700 bg-slate-900 p-3 text-slate-200"

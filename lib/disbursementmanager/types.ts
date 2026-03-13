@@ -1,0 +1,43 @@
+export type AccountingReferenceStatus = "OK" | "PENDING" | "OVERDUE";
+
+export type AccountingPriority = "OK" | "ATENCION" | "URGENTE" | "ENVIADO" | "NO ENVIADO";
+
+export type DisbursementBoardRow = {
+  appointment_id: string;
+  vessel_name: string;
+  role?: string | null;
+  port: string | null;
+  terminal: string | null;
+  client_name: string | null;
+  cargo_operation: string | null;
+  other_agents?: string | null;
+  other_agents_role?: string | null;
+  shiftreporter_link?: string | null;
+  thanks_to?: string | null;
+  appointment_status: string | null;
+  accounting_reference: string | null;
+  nomination_received_on: string | null;
+  departure_date: string | null;
+  days_since_nomination: number;
+  accounting_reference_status: AccountingReferenceStatus;
+  roe: number | null;
+  pda_due_days_override: number | null;
+  pda_sent_on: string | null;
+  pda_status: string;
+  ada_attention_days_override: number | null;
+  ada_urgent_days_override: number | null;
+  ada_created_on: string | null;
+  ada_sent_on: string | null;
+  ada_status: string;
+  ada_priority: AccountingPriority;
+  fda_attention_days_override: number | null;
+  fda_urgent_days_override: number | null;
+  fda_created_on: string | null;
+  fda_status: string;
+  fda_sent_on: string | null;
+  fda_priority: AccountingPriority;
+  comments: string | null;
+  berth: string | null;
+  days_count: number | null;
+  operator_initials: string | null;
+};
