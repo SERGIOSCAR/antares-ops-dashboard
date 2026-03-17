@@ -27,12 +27,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/shiftreporter/:path*", "/admin/:path*", "/api/shiftreporter/:path*"],
+  matcher: ["/dashboard/:path*", "/shiftreporter/:path*", "/admin/:path*", "/vesselmanager/:path*", "/api/shiftreporter/:path*"],
 };

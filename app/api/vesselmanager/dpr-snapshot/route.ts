@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 
 const DRAFT_META_GRADE = new Set(["__META_DRAFT_FWD__", "__META_DRAFT_MEAN__", "__META_DRAFT_AFT__"]);
 
@@ -24,6 +25,11 @@ function formatDateTimeShort(value?: string | null) {
 
 export async function GET(req: Request) {
   try {
+    const { user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const appointmentId = String(searchParams.get("appointment_id") || "").trim();
     if (!appointmentId) {

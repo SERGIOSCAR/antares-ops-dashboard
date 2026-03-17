@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 import type { AppointmentRecipient, CreateAppointmentInput, EtaNoticeLine, EtaNoticeSettings } from "@/lib/vesselmanager/types";
 
 const APPOINTMENT_SELECT_FULL =
@@ -339,7 +340,10 @@ async function provisionShiftReporterVessel(args: {
 
 export async function GET() {
   try {
-    const supabase = await supabaseServer();
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     let query: { data: any[] | null; error: { message: string } | null } = (await supabase
       .from("appointments")
@@ -416,10 +420,10 @@ export async function POST(req: Request) {
     const fdaCreatedOn = sanitizeDate(body.fda_created_on);
     const fdaSentOn = sanitizeDate(body.fda_sent_on);
 
-    const supabase = await supabaseServer();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     await assertUniqueAppointmentKey({
       supabase,
       vesselName: body.vessel_name,

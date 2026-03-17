@@ -1,16 +1,20 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import VesselBoard from "./components/vessel-board";
 import VesselManagerBrand from "./components/vesselmanager-brand";
 import type { Appointment } from "@/lib/vesselmanager/types";
 
-async function fetchAppointmentsServer(): Promise<Appointment[]> {
+async function fetchAppointmentsServer(): Promise<{
+  appointments: Appointment[];
+  unauthorized: boolean;
+}> {
   const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host");
   const proto = h.get("x-forwarded-proto") || "http";
   const cookie = h.get("cookie");
 
-  if (!host) return [];
+  if (!host) return { appointments: [], unauthorized: false };
 
   const baseUrl = `${proto}://${host}`;
   const res = await fetch(`${baseUrl}/api/vesselmanager/appointments`, {
@@ -18,16 +22,22 @@ async function fetchAppointmentsServer(): Promise<Appointment[]> {
     headers: cookie ? { cookie } : undefined,
   });
 
+  if (res.status === 401) {
+    return { appointments: [], unauthorized: true };
+  }
   if (!res.ok) {
-    return [];
+    return { appointments: [], unauthorized: false };
   }
 
   const json = (await res.json()) as { data?: Appointment[] };
-  return json.data ?? [];
+  return { appointments: json.data ?? [], unauthorized: false };
 }
 
 export default async function VesselManagerPage() {
-  const appointments = await fetchAppointmentsServer();
+  const { appointments, unauthorized } = await fetchAppointmentsServer();
+  if (unauthorized) {
+    redirect("/login");
+  }
 
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">

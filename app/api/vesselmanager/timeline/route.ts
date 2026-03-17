@@ -1,5 +1,5 @@
 ﻿import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 import { deriveAppointmentStatus } from "@/lib/vesselmanager/status";
 import type { AppointmentTimelineRow, CreateTimelineInput } from "@/lib/vesselmanager/types";
 
@@ -38,7 +38,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = await supabaseServer();
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { data: existing } = await supabase
       .from("appointment_timeline")

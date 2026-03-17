@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 
 type DprPayload = {
   openingSentence?: string;
@@ -212,6 +213,11 @@ function categoryBatchKey(category: string): DprBatch {
 
 export async function POST(req: Request) {
   try {
+    const { user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = (await req.json()) as {
       appointment_id?: string;
       batch?: string;

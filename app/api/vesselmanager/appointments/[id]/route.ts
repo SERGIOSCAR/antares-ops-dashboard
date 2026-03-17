@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
+import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 import { deriveAppointmentStatus } from "@/lib/vesselmanager/status";
 import type {
   AppointmentRecipient,
@@ -326,7 +327,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await supabaseServer();
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const [{ data: appointment, error: appointmentError }, timelineResult, recipientsResult, etaSettingsResult, etaLinesResult, accountingSeed] = await Promise.all([
       (async () => {
@@ -499,10 +503,10 @@ export async function PATCH(
     const fdaCreatedOn = sanitizeDate(body.fda_created_on);
     const fdaSentOn = sanitizeDate(body.fda_sent_on);
 
-    const supabase = await supabaseServer();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { supabase, user } = await requireAuthenticatedUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     await assertUniqueAppointmentKey({
       supabase,
       appointmentId: id,
