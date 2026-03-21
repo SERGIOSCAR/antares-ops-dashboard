@@ -2,6 +2,7 @@ export type OperationType = "LOAD" | "DISCHARGE";
 
 export type Vessel = {
   id: string;
+  appointment_id?: string | null;
   short_id: string;
   name: string;
   port: string;

@@ -12,7 +12,11 @@ const DRAFT_META_GRADE = {
   aft: "__META_DRAFT_AFT__",
 } as const;
 
-export default async function VesselPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VesselPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   const supabase = await supabaseServer();
@@ -20,7 +24,7 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
 
   const admin = supabaseAdmin();
 
-  const { data: vessel } = await admin
+  let { data: vessel } = await admin
     .from("vessels")
     .select("*")
     .eq("short_id", id)
@@ -167,94 +171,36 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
         {!commenced && (
           <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
             <h2 className="mb-3 text-lg font-semibold text-slate-100">Operations Not Started</h2>
-            <p className="mb-4 text-sm text-zinc-600">
-              Click &quot;Commence Operations&quot; to start logging shifts.
+            <p className="mb-4 text-sm text-slate-300">
+              Review the setup below. If something is wrong, return and revise it before commencing operations.
             </p>
-            <CommenceButton vesselId={vessel.id} />
+            <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                <div className="mb-1 text-xs uppercase tracking-wide text-slate-400">Operation</div>
+                <div className="text-sm text-slate-200">{vessel.operation_type}</div>
+              </div>
+              <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                <div className="mb-1 text-xs uppercase tracking-wide text-slate-400">Port / Terminal</div>
+                <div className="text-sm text-slate-200">
+                  {vessel.port} / {vessel.terminal}
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                <div className="mb-1 text-xs uppercase tracking-wide text-slate-400">Holds</div>
+                <div className="text-sm text-slate-200">{vessel.holds}</div>
+              </div>
+              <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-4">
+                <div className="mb-1 text-xs uppercase tracking-wide text-slate-400">Grades</div>
+                <div className="text-sm text-slate-200">{vessel.cargo_grades?.join(", ") || "None set"}</div>
+              </div>
+            </div>
+            <CommenceButton
+              vesselId={vessel.id}
+              initialRecipients={Array.isArray(vessel.default_recipients) ? vessel.default_recipients : []}
+              reviseHref={vessel.appointment_id ? `/shiftreporter?appointment_id=${vessel.appointment_id}` : undefined}
+            />
           </div>
         )}
-
-        <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="mb-3 text-lg font-semibold text-slate-100">Running SOF</h2>
-            <div className="flex items-center gap-2">
-              <a
-                href="#running-sof-editor"
-                className="rounded border border-blue-500/60 bg-blue-600/20 px-3 py-1 text-sm text-blue-200 hover:bg-blue-600/30"
-              >
-                + Add Event
-              </a>
-              <a
-                href="#running-sof-editor"
-                className="rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700"
-              >
-                Edit SOF
-              </a>
-            </div>
-          </div>
-          <p className="mb-4 text-xs text-slate-400">
-            Edit or add events from the controls below.
-          </p>
-          {runningSofEvents.length === 0 ? (
-            <p className="text-sm text-slate-400">No SOF events recorded yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Time</th>
-                    <th className="px-3 py-2 text-left">End Time</th>
-                    <th className="px-3 py-2 text-left">Event</th>
-                    <th className="px-3 py-2 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {runningSofEvents.map((event, idx) => (
-                    <tr key={`${event.id}-${idx}`} className="odd:bg-slate-800 even:bg-slate-900">
-                      <td className="px-3 py-2">{formatDateTime(event.from)}</td>
-                      <td className="px-3 py-2">{formatDateTime(event.to)}</td>
-                      <td className="px-3 py-2">{event.reason}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          <a
-                            href="#running-sof-editor"
-                            className="text-blue-400 hover:text-blue-300 hover:underline"
-                          >
-                            Edit
-                          </a>
-                          <a
-                            href="#running-sof-editor"
-                            className="text-emerald-400 hover:text-emerald-300 hover:underline"
-                          >
-                            Add
-                          </a>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div id="running-sof-editor">
-            <details open>
-              <summary className="mt-3 cursor-pointer rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700">
-                Edit Running SOF
-              </summary>
-              <div className="mt-3">
-                <RunningSofEditor
-                  vesselId={vessel.id}
-                  events={runningShiftEvents.map((e) => ({
-                    id: e.id,
-                    from: e.from,
-                    to: e.to,
-                    reason: e.reason,
-                  }))}
-                />
-              </div>
-            </details>
-          </div>
-        </div>
 
         {commenced && (
           <>
@@ -275,6 +221,54 @@ export default async function VesselPage({ params }: { params: Promise<{ id: str
               stowPlan={stowPlan || []}
               cumulativeTotals={cumulativeTotals}
             />
+
+            <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="mb-3 text-lg font-semibold text-slate-100">Running SOF</h2>
+                <a
+                  href="#running-sof-editor"
+                  className="rounded border border-slate-600 px-3 py-1 text-sm text-slate-200 hover:bg-slate-700"
+                >
+                  Edit SOF
+                </a>
+              </div>
+              <p className="mb-4 text-xs text-slate-400">Edit or add events from the controls below.</p>
+              {runningSofEvents.length === 0 ? (
+                <p className="text-sm text-slate-400">No SOF events recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Time</th>
+                        <th className="px-3 py-2 text-left">End Time</th>
+                        <th className="px-3 py-2 text-left">Event</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {runningSofEvents.map((event, idx) => (
+                        <tr key={`${event.id}-${idx}`} className="odd:bg-slate-800 even:bg-slate-900">
+                          <td className="px-3 py-2">{formatDateTime(event.from)}</td>
+                          <td className="px-3 py-2">{formatDateTime(event.to)}</td>
+                          <td className="px-3 py-2">{event.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div id="running-sof-editor" className="mt-4">
+                <RunningSofEditor
+                  vesselId={vessel.id}
+                  events={runningShiftEvents.map((e) => ({
+                    id: e.id,
+                    from: e.from,
+                    to: e.to,
+                    reason: e.reason,
+                  }))}
+                />
+              </div>
+            </div>
           </>
         )}
       </div>

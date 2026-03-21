@@ -494,6 +494,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   const [dprByAppointment, setDprByAppointment] = useState<Record<string, DprDraft>>({});
   const [dprBusyByAppointment, setDprBusyByAppointment] = useState<Record<string, boolean>>({});
   const [dprStatusByAppointment, setDprStatusByAppointment] = useState<Record<string, string>>({});
+  const [resolvedShiftLinks, setResolvedShiftLinks] = useState<Record<string, string>>({});
   const [dprBatchByAppointment, setDprBatchByAppointment] = useState<Record<string, DprBatch>>({});
 
   const workspaceKey = (appointmentId: string, tool: string) =>
@@ -1030,6 +1031,21 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     return `${window.location.origin}${pathOrUrl}`;
   };
 
+  const hasDirectVesselLink = (pathOrUrl: string) => /\/v\/[^/?#]+/i.test(String(pathOrUrl || "").trim());
+
+  const withAppointmentContext = (pathOrUrl: string, appointmentId: string) => {
+    const raw = String(pathOrUrl || "").trim();
+    if (!hasDirectVesselLink(raw)) return raw;
+    const url = typeof window === "undefined" ? new URL(raw, "http://localhost") : new URL(toAbsoluteUrl(raw));
+    if (!url.searchParams.get("appointment_id")) {
+      url.searchParams.set("appointment_id", appointmentId);
+    }
+    if (typeof window === "undefined") {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  };
+
   const toPublicViewUrl = (pathOrUrl: string) => {
     const raw = toAbsoluteUrl(pathOrUrl);
     const m = raw.match(/\/v\/([^/?#]+)/i);
@@ -1038,9 +1054,9 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
   };
 
   const ensureShiftReportLink = async (appointment: Appointment, fallbackLink: string) => {
-    const current = appointment.shiftreporter_link?.trim() || fallbackLink;
-    if (current.startsWith("/v/") || current.startsWith("http://") || current.startsWith("https://")) {
-      return current;
+    const current = resolvedShiftLinks[appointment.id]?.trim() || appointment.shiftreporter_link?.trim() || fallbackLink;
+    if (hasDirectVesselLink(current)) {
+      return withAppointmentContext(current, appointment.id);
     }
 
     const res = await fetch(`/api/vesselmanager/appointments/${appointment.id}/shift-link`, {
@@ -1051,6 +1067,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
     if (!res.ok || !json.data?.link) {
       throw new Error(json.error || "Failed to create Shift Report link");
     }
+    setResolvedShiftLinks((prev) => ({ ...prev, [appointment.id]: json.data!.link! }));
     return json.data.link;
   };
 
@@ -1631,7 +1648,9 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                   : "";
               const narrative = [portTerminal, cargoSpec, appointedByText].filter(Boolean).join(" | ");
               const shiftReportLink =
-                appointment.shiftreporter_link?.trim() || `/shiftreporter?appointment_id=${appointment.id}`;
+                resolvedShiftLinks[appointment.id]?.trim() ||
+                appointment.shiftreporter_link?.trim() ||
+                `/shiftreporter?appointment_id=${appointment.id}`;
               const lineupEntry = lineupByAppointment[appointment.id];
               const lineupStamp = lineupEntry?.updated_at
                 ? new Date(lineupEntry.updated_at).toLocaleString()
@@ -1886,54 +1905,15 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                               <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
-                                  className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 hover:bg-slate-800"
-                                  onClick={async () => {
-                                    const key = `${appointment.id}:copy`;
-                                    try {
-                                      const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
-                                      await navigator.clipboard.writeText(toAbsoluteUrl(ensuredLink));
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Copied" }));
-                                    } catch {
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Copy failed" }));
-                                    }
-                                  }}
-                                >
-                                  Copy Link
-                                </button>
-                                <button
-                                  type="button"
-                                  className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 hover:bg-slate-800"
-                                  onClick={async () => {
-                                    const key = `${appointment.id}:share`;
-                                    try {
-                                      const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
-                                      const shareUrl = toAbsoluteUrl(ensuredLink);
-                                      if (navigator.share) {
-                                        await navigator.share({
-                                          title: `Shift Report - ${appointment.vessel_name}`,
-                                          url: shareUrl,
-                                        });
-                                      } else {
-                                        await navigator.clipboard.writeText(shareUrl);
-                                      }
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Shared" }));
-                                    } catch {
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Share cancelled" }));
-                                    }
-                                  }}
-                                >
-                                  Share Link
-                                </button>
-                                <button
-                                  type="button"
                                   className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-500"
                                   onClick={async () => {
-                                    const key = `${appointment.id}:share`;
+                                    const key = `${appointment.id}:open`;
                                     try {
                                       const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
                                       if (typeof window !== "undefined") {
                                         window.open(toAbsoluteUrl(ensuredLink), "_blank", "noopener,noreferrer");
                                       }
+                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Opened" }));
                                     } catch (error) {
                                       setShiftLinkStatus((prev) => ({
                                         ...prev,
@@ -1942,7 +1922,7 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                                     }
                                   }}
                                 >
-                                  Add Shift
+                                  {String(shiftReportLink || "").includes("/v/") ? "Open ShiftReporter" : "Create / Edit ShiftReporter"}
                                 </button>
                                 <button
                                   type="button"
@@ -1967,30 +1947,10 @@ export default function VesselBoard({ appointments }: { appointments: Appointmen
                                 >
                                   VIEW
                                 </button>
-                                <button
-                                  type="button"
-                                  className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-100 hover:bg-slate-800"
-                                  onClick={async () => {
-                                    const key = `${appointment.id}:viewcopy`;
-                                    try {
-                                      const ensuredLink = await ensureShiftReportLink(appointment, shiftReportLink);
-                                      const viewUrl = toPublicViewUrl(ensuredLink);
-                                      if (!viewUrl) throw new Error("Could not create VIEW link");
-                                      await navigator.clipboard.writeText(viewUrl);
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "VIEW link copied" }));
-                                    } catch {
-                                      setShiftLinkStatus((prev) => ({ ...prev, [key]: "Copy VIEW link failed" }));
-                                    }
-                                  }}
-                                >
-                                  Copy VIEW Link
-                                </button>
                               </div>
                               <div className="mt-2 text-[11px] text-slate-400">
-                                {shiftLinkStatus[`${appointment.id}:copy`] ||
-                                  shiftLinkStatus[`${appointment.id}:share`] ||
+                                {shiftLinkStatus[`${appointment.id}:open`] ||
                                   shiftLinkStatus[`${appointment.id}:view`] ||
-                                  shiftLinkStatus[`${appointment.id}:viewcopy`] ||
                                   ""}
                               </div>
                             </div>

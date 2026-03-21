@@ -255,14 +255,14 @@ export default function ShiftForm({
     // For LOAD, warn when above plan. For DISCHARGE, allow over-discharge (negative balance).
     if (operationType === "LOAD" && newAccumulated > planned && planned > 0) {
       alert(
-        `âš ï¸ Hold ${hold} Total Surpasses Stowplan!\n\n` +
+        `Hold ${hold} total surpasses stow plan.\n\n` +
         `Grade: ${grade}\n` +
         `Planned: ${planned.toFixed(2)} MT\n` +
         `Already Loaded: ${loaded.toFixed(2)} MT\n` +
         `This Shift: ${value.toFixed(2)} MT\n` +
         `Total Would Be: ${newAccumulated.toFixed(2)} MT\n\n` +
         `Excess: ${(newAccumulated - planned).toFixed(2)} MT\n\n` +
-        `Please revise data or update Stow Plan.`
+        `Please revise data or update stow plan.`
       );
       return; // Don't update the value
     }
@@ -308,14 +308,14 @@ export default function ShiftForm({
 
       // If duplicate shift exists, ask for confirmation
       if (existingShift) {
-        const confirmed = confirm(
-          `âš ï¸ This shift has been loaded already.\n\n` +
-          `Existing shift:\n` +
-          `Date: ${reportDate}\n` +
-          `Shift: ${shiftType}\n\n` +
-          `If you wish to proceed with this new one as revised click YES.\n` +
-          `Otherwise click NO.`
-        );
+          const confirmed = confirm(
+            `This shift has been loaded already.\n\n` +
+            `Existing shift:\n` +
+            `Date: ${reportDate}\n` +
+            `Shift: ${shiftType}\n\n` +
+            `If you wish to proceed with this new one as revised click YES.\n` +
+            `Otherwise click NO.`
+          );
         
         if (!confirmed) {
           setLoading(false);
@@ -405,7 +405,7 @@ export default function ShiftForm({
         const conflictData = await res.json().catch(() => ({}));
         if (conflictData?.error === "SHIFT_ALREADY_EXISTS" && !payload.isRevised) {
           const confirmed = confirm(
-            `âš ï¸ This shift has been loaded already.\n\n` +
+            `This shift has been loaded already.\n\n` +
             `If you wish to proceed with this new one as revised click YES.\n` +
             `Otherwise click NO.`
           );
@@ -436,14 +436,10 @@ export default function ShiftForm({
 
       const email = responseData?.email as { success?: boolean; error?: string; emailId?: string } | undefined;
       const submitMessage = payload.isRevised
-        ? "âœ… Shift report REVISED successfully!"
-        : "âœ… Shift report submitted successfully!";
+        ? "Shift report revised successfully."
+        : "Shift report submitted successfully.";
 
-      const emailMessage = email?.success
-        ? `\n\nðŸ“§ Email accepted by provider${email.emailId ? ` (ref: ${email.emailId})` : ""}.`
-        : `\n\nâš ï¸ Shift saved, but email was not confirmed: ${email?.error || "Unknown email issue"}`;
-      
-      alert(`${submitMessage}${email?.success ? "" : "\n\nâš ï¸ Shift saved, but email was not confirmed."}`);
+      alert(`${submitMessage}${email?.success ? "" : "\n\nShift saved, but email was not confirmed."}`);
       router.refresh();
 
       // Reset form
@@ -469,7 +465,7 @@ export default function ShiftForm({
       {existingShift && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded">
           <p className="text-yellow-800 font-semibold">
-            âš ï¸ This shift has been loaded already. Submit as revised only if you want to replace it.
+            This shift has been loaded already. Submit as revised only if you want to replace it.
           </p>
         </div>
       )}
@@ -489,7 +485,7 @@ export default function ShiftForm({
                   const input = reportDateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
                   if (input?.showPicker) input.showPicker();
                 }}
-                className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
+                className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 [color-scheme:dark] focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="button"
@@ -563,7 +559,7 @@ export default function ShiftForm({
 
           {delays.length === 0 ? (
             <p className="text-sm text-zinc-500">
-              Add event times (e.g. 02:30â€“03:15 meal break) or isolated events (e.g. 04:10 hatch covers opened).
+              Add event times (e.g. 02:30-03:15 meal break) or isolated events (e.g. 04:10 hatch covers opened).
             </p>
           ) : (
             <div className="space-y-2">
@@ -636,9 +632,9 @@ export default function ShiftForm({
                   <button
                     type="button"
                     onClick={() => setDelays((prev) => prev.filter((_, i) => i !== idx))}
-                    className="col-span-1 min-h-[44px] rounded border border-red-300 p-2 text-red-600 hover:bg-red-900/30"
+                    className="col-span-1 min-h-[44px] rounded border border-red-300 p-2 text-red-300 hover:bg-red-900/30"
                   >
-                    âœ•
+                    X
                   </button>
                 </div>
               ))}
@@ -746,9 +742,9 @@ export default function ShiftForm({
             className="w-full touch-manipulation rounded border border-slate-600 bg-slate-900 p-2 text-slate-100 focus:ring-2 focus:ring-blue-500"
             placeholder="extra1@example.com, extra2@example.com"
           />
-          <p className="text-xs text-slate-400 mt-1">
-            ðŸ’¡ Main recipients are configured in vessel settings. Add extra recipients here if needed (comma-separated).
-          </p>
+            <p className="text-xs text-slate-400 mt-1">
+              Main recipients are configured in vessel settings. Add extra recipients here if needed.
+            </p>
         </div>
 
         {/* Submit Button */}

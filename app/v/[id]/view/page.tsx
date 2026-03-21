@@ -16,6 +16,10 @@ type StowRow = {
   draft_aft: number | null;
 };
 
+function isMissingConditionColumn(message?: string) {
+  return String(message || "").toLowerCase().includes("condition");
+}
+
 function fmtDate(value?: string | null) {
   if (!value) return "-";
   const d = new Date(value);
@@ -82,11 +86,19 @@ export default async function VesselPublicViewPage({
         .in("shift_id", shiftIds)
     : { data: [] as ShiftLineRow[] };
 
-  const { data: stowRows } = await admin
+  let stowRes: any = await admin
     .from("stow_plans")
     .select("hold,grade,total_mt,condition,draft_fwd,draft_mean,draft_aft")
     .eq("vessel_id", vessel.id)
     .order("hold", { ascending: true });
+  if (stowRes.error && isMissingConditionColumn(stowRes.error.message)) {
+    stowRes = await admin
+      .from("stow_plans")
+      .select("hold,grade,total_mt,draft_fwd,draft_mean,draft_aft")
+      .eq("vessel_id", vessel.id)
+      .order("hold", { ascending: true });
+  }
+  const stowRows = stowRes.data as StowRow[] | null;
 
   const mapLatest = new Map<string, number>();
   (latestShiftLines || []).forEach((row) => {

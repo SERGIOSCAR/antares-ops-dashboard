@@ -133,7 +133,6 @@ export default function AppointmentForm({
     cargo_operation: initialAppointment?.cargo_operation ?? "",
     cargo_grade: initialAppointment?.cargo_grade ?? "",
     cargo_qty: initialAppointment?.cargo_qty?.toString() ?? "",
-    holds: initialAppointment?.holds?.toString() ?? "",
     role: initialAppointment?.role ?? "",
     appointed_by: initialAppointment?.appointed_by ?? "",
     charterer_agent: initialAppointment?.charterer_agent ?? "",
@@ -284,7 +283,6 @@ export default function AppointmentForm({
         cargo_operation: form.cargo_operation || null,
         cargo_grade: form.cargo_grade || null,
         cargo_qty: form.cargo_qty ? Number(form.cargo_qty) : null,
-        holds: form.holds ? Number(form.holds) : null,
         role: form.role || null,
         appointed_by: form.appointed_by || null,
         charterer_agent: form.charterer_agent || null,
@@ -395,7 +393,7 @@ export default function AppointmentForm({
             </label>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <label className={label}>
               Type of Operation
               <select className={input} value={form.cargo_operation} onChange={(e) => updateField("cargo_operation", e.target.value)}>
@@ -421,18 +419,6 @@ export default function AppointmentForm({
                 className={input}
                 value={form.cargo_qty}
                 onChange={(e) => updateField("cargo_qty", digitsOnly(e.target.value, 6))}
-              />
-            </label>
-            <label className={label}>
-              Holds Qty
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={2}
-                className={input}
-                value={form.holds}
-                onChange={(e) => updateField("holds", digitsOnly(e.target.value, 2))}
               />
             </label>
           </div>

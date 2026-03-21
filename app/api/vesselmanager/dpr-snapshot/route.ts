@@ -11,6 +11,10 @@ function extractShortId(link?: string | null) {
   return match?.[1] || "";
 }
 
+function isMissingVesselAppointmentColumn(message?: string) {
+  return String(message || "").includes("appointment_id");
+}
+
 function formatDateTimeShort(value?: string | null) {
   const raw = String(value || "").trim();
   if (!raw) return "-";
@@ -51,8 +55,18 @@ export async function GET(req: Request) {
       .eq("appointment_id", appointmentId)
       .maybeSingle();
 
-    const shortId = extractShortId(appointment.shiftreporter_link);
-    if (!shortId) {
+    const linkedVesselRes = await admin
+      .from("vessels")
+      .select("id,short_id,name")
+      .eq("appointment_id", appointmentId)
+      .maybeSingle();
+    if (linkedVesselRes.error && !isMissingVesselAppointmentColumn(linkedVesselRes.error.message)) {
+      return NextResponse.json({ error: linkedVesselRes.error.message }, { status: 500 });
+    }
+    const linkedVessel = linkedVesselRes.error ? null : linkedVesselRes.data;
+
+    const shortId = linkedVessel?.short_id || extractShortId(appointment.shiftreporter_link);
+    if (!shortId && !linkedVessel?.id) {
       return NextResponse.json({
         data: {
           lineup: String(lineup?.content || ""),
@@ -64,11 +78,15 @@ export async function GET(req: Request) {
       });
     }
 
-    const { data: vessel, error: vesselError } = await admin
-      .from("vessels")
-      .select("id,name")
-      .eq("short_id", shortId)
-      .maybeSingle();
+    const fallbackVesselRes = linkedVessel
+      ? null
+      : await admin
+          .from("vessels")
+          .select("id,name,short_id")
+          .eq("short_id", shortId)
+          .maybeSingle();
+    const vessel = linkedVessel || fallbackVesselRes?.data;
+    const vesselError = fallbackVesselRes?.error || null;
     if (vesselError) return NextResponse.json({ error: vesselError.message }, { status: 500 });
     if (!vessel) {
       return NextResponse.json({
@@ -82,16 +100,18 @@ export async function GET(req: Request) {
       });
     }
 
+    const vesselId = String(vessel.id || "");
+
     const [{ data: stowRows }, { data: shiftRows }] = await Promise.all([
       admin
         .from("stow_plans")
         .select("hold,grade,total_mt,draft_fwd,draft_mean,draft_aft")
-        .eq("vessel_id", vessel.id)
+        .eq("vessel_id", vesselId)
         .order("hold", { ascending: true }),
       admin
         .from("shift_reports")
         .select("id,shift_start,shift_end")
-        .eq("vessel_id", vessel.id)
+        .eq("vessel_id", vesselId)
         .order("shift_start", { ascending: false }),
     ]);
 

@@ -1,55 +1,10 @@
 import { NextResponse } from "next/server";
-import { nanoid } from "nanoid";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
+import { extractShortId } from "@/lib/shiftreporter/sync-vessel-from-appointment";
 
 function isMissingShiftLinkColumn(message?: string) {
   if (!message) return false;
   return message.includes("shiftreporter_link");
-}
-
-function mapOperationType(input?: string | null): "LOAD" | "DISCHARGE" {
-  const normalized = (input || "").trim().toUpperCase();
-  if (normalized === "DISCH" || normalized === "DISCHARGE") return "DISCHARGE";
-  return "LOAD";
-}
-
-function splitCargoGrades(input?: string | null) {
-  if (!input) return [] as string[];
-  return input
-    .split(",")
-    .map((grade) => grade.trim())
-    .filter(Boolean);
-}
-
-async function createShiftVessel(args: {
-  vesselName: string;
-  port?: string | null;
-  terminal?: string | null;
-  cargoOperation?: string | null;
-  cargoGrade?: string | null;
-  holds?: number | null;
-  createdBy?: string | null;
-}) {
-  const admin = supabaseAdmin();
-  const shortId = nanoid(10);
-
-  const { error } = await admin.from("vessels").insert({
-    short_id: shortId,
-    name: args.vesselName,
-    port: args.port || "TBC",
-    terminal: args.terminal || "TBC",
-    operation_type: mapOperationType(args.cargoOperation),
-    cargo_grades: splitCargoGrades(args.cargoGrade),
-    holds: args.holds && args.holds > 0 ? args.holds : 1,
-    shift_type: "00-06/06-12/12-18/18-24",
-    default_recipients: [],
-    created_by: args.createdBy || null,
-    commenced_at: new Date().toISOString(),
-  });
-
-  if (error) throw error;
-  return `/v/${shortId}`;
 }
 
 export async function POST(
@@ -96,31 +51,40 @@ export async function POST(
       return NextResponse.json({ error: appointmentError?.message || "Appointment not found" }, { status: 404 });
     }
 
-    const existingLink = appointment.shiftreporter_link as string | null;
-    if (existingLink && existingLink.startsWith("/v/")) {
-      return NextResponse.json({ data: { link: existingLink } });
+    let linkedVesselRes = await supabase
+      .from("vessels")
+      .select("id,short_id")
+      .eq("appointment_id", id)
+      .maybeSingle();
+    if (linkedVesselRes.error && !String(linkedVesselRes.error.message || "").includes("appointment_id")) {
+      return NextResponse.json({ error: linkedVesselRes.error.message }, { status: 500 });
     }
 
-    const link = await createShiftVessel({
-      vesselName: appointment.vessel_name,
-      port: appointment.port,
-      terminal: appointment.terminal,
-      cargoOperation: appointment.cargo_operation,
-      cargoGrade: appointment.cargo_grade,
-      holds: appointment.holds,
-      createdBy: user?.id,
-    });
+    if (!linkedVesselRes.data) {
+      const shortId = extractShortId(appointment.shiftreporter_link);
+      if (shortId) {
+        linkedVesselRes = await supabase.from("vessels").select("id,short_id").eq("short_id", shortId).maybeSingle();
+        if (linkedVesselRes.error) {
+          return NextResponse.json({ error: linkedVesselRes.error.message }, { status: 500 });
+        }
+      }
+    }
 
-    const { error: updateError } = await supabase
-      .from("appointments")
-      .update({ shiftreporter_link: link })
-      .eq("id", id);
+    if (linkedVesselRes.data?.short_id) {
+      const persistedLink = `/v/${linkedVesselRes.data.short_id}`;
+      const { error: updateError } = await supabase.from("appointments").update({ shiftreporter_link: persistedLink }).eq("id", id);
+      if (updateError && !isMissingShiftLinkColumn(updateError.message)) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+      return NextResponse.json({ data: { link: `${persistedLink}?appointment_id=${id}` } });
+    }
 
+    const fallbackLink = `/shiftreporter?appointment_id=${id}`;
+    const { error: updateError } = await supabase.from("appointments").update({ shiftreporter_link: fallbackLink }).eq("id", id);
     if (updateError && !isMissingShiftLinkColumn(updateError.message)) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
-
-    return NextResponse.json({ data: { link } });
+    return NextResponse.json({ data: { link: fallbackLink } });
   } catch (error: unknown) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to generate shift report link" },

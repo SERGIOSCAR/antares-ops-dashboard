@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { nanoid } from "nanoid";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 import type { AppointmentRecipient, CreateAppointmentInput, EtaNoticeLine, EtaNoticeSettings } from "@/lib/vesselmanager/types";
@@ -128,20 +126,6 @@ async function saveEtaNotice(supabase: Awaited<ReturnType<typeof supabaseServer>
       throw new Error(insertLines.error.message);
     }
   }
-}
-
-function mapOperationType(input?: string | null): "LOAD" | "DISCHARGE" {
-  const normalized = (input || "").trim().toUpperCase();
-  if (normalized === "DISCH" || normalized === "DISCHARGE") return "DISCHARGE";
-  return "LOAD";
-}
-
-function splitCargoGrades(input?: string | null) {
-  if (!input) return [];
-  return input
-    .split(",")
-    .map((grade) => grade.trim())
-    .filter(Boolean);
 }
 
 function sanitizeInt(input: unknown, maxDigits: number) {
@@ -305,37 +289,6 @@ async function persistSecondaryRecords(args: {
     fdaSentOn,
   });
   await saveEtaNotice(supabase, appointmentId, body.eta_notice);
-}
-
-async function provisionShiftReporterVessel(args: {
-  appointmentId: string;
-  vesselName: string;
-  port?: string | null;
-  terminal?: string | null;
-  cargoOperation?: string | null;
-  cargoGrade?: string | null;
-  holds?: number | null;
-  createdBy?: string | null;
-}) {
-  const admin = supabaseAdmin();
-  const shortId = nanoid(10);
-
-  const { error } = await admin.from("vessels").insert({
-    short_id: shortId,
-    name: args.vesselName,
-    port: args.port || "TBC",
-    terminal: args.terminal || "TBC",
-    operation_type: mapOperationType(args.cargoOperation),
-    cargo_grades: splitCargoGrades(args.cargoGrade),
-    holds: args.holds && args.holds > 0 ? args.holds : 1,
-    shift_type: "00-06/06-12/12-18/18-24",
-    default_recipients: [],
-    created_by: args.createdBy || null,
-    commenced_at: new Date().toISOString(),
-  });
-
-  if (error) throw error;
-  return `/v/${shortId}`;
 }
 
 export async function GET() {
@@ -557,26 +510,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: insertRes.error.message }, { status: 500 });
     }
 
-    let shiftLink = insertRes.data.shiftreporter_link || fallbackShiftReporterLink;
-    try {
-      shiftLink = await provisionShiftReporterVessel({
-        appointmentId: insertRes.data.id,
-        vesselName: payload.vessel_name,
-        port: payload.port,
-        terminal: payload.terminal,
-        cargoOperation: payload.cargo_operation,
-        cargoGrade: payload.cargo_grade,
-        holds: payload.holds,
-        createdBy: user?.id,
-      });
-
-      await supabase
-        .from("appointments")
-        .update({ shiftreporter_link: shiftLink })
-        .eq("id", insertRes.data.id);
-    } catch {
-      // keep fallback link if ShiftReporter vessel provisioning fails
-    }
+    const shiftLink = insertRes.data.shiftreporter_link || fallbackShiftReporterLink;
 
     try {
       await persistSecondaryRecords({
