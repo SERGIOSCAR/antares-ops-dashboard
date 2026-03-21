@@ -45,6 +45,7 @@ export const ShiftSubmitSchema = z.object({
 });
 
 export const VesselCreateSchema = z.object({
+  appointmentId: z.string().uuid().optional(),
   name: z.string().trim().min(1),
   port: z.string().trim().min(1),
   terminal: z.string().trim().min(1),
@@ -53,7 +54,7 @@ export const VesselCreateSchema = z.object({
   holds: z.number().int().positive().max(30),
   shiftType: z.string().trim().min(1).optional().default("00-06/06-12/12-18/18-24"),
   recipients: z.array(z.string().email()).default([]),
-  headUsername: z.string().trim().min(1),
+  headUsername: z.string().trim().min(1).optional().default("head1"),
   stow: z
     .array(
       z.object({

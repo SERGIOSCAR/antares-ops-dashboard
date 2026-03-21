@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { requireAuthenticatedUser } from "@/lib/supabase/require-user";
 import { deriveAppointmentStatus } from "@/lib/vesselmanager/status";
@@ -46,6 +47,11 @@ function isMissingAccountingColumn(message?: string) {
     message.includes("nomination_received_on") ||
     message.includes("operator_initials")
   );
+}
+
+function isMissingVesselAppointmentColumn(message?: string) {
+  if (!message) return false;
+  return message.includes("appointment_id");
 }
 
 function hasMissingAppointmentColumn(message?: string) {
@@ -152,6 +158,208 @@ function sanitizeDate(input: unknown) {
   const raw = String(input).trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
   return raw;
+}
+
+function extractShortId(link?: string | null) {
+  const raw = String(link || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/\/v\/([^/?#]+)/i);
+  return match?.[1] || "";
+}
+
+function mapOperationType(input?: string | null): "LOAD" | "DISCHARGE" {
+  const normalized = (input || "").trim().toUpperCase();
+  if (normalized === "DISCH" || normalized === "DISCHARGE") return "DISCHARGE";
+  return "LOAD";
+}
+
+function splitCargoGrades(input?: string | null) {
+  if (!input) return [];
+  return input
+    .split(",")
+    .map((grade) => grade.trim())
+    .filter(Boolean);
+}
+
+const DRAFT_META_GRADE = new Set(["__META_DRAFT_FWD__", "__META_DRAFT_MEAN__", "__META_DRAFT_AFT__"]);
+
+async function findLinkedShiftReporterVessel(appointmentId: string, shiftreporterLink?: string | null) {
+  const admin = supabaseAdmin();
+
+  const byAppointment = await admin
+    .from("vessels")
+    .select("id,short_id,name,port,terminal,operation_type,holds,cargo_grades,commenced_at")
+    .eq("appointment_id", appointmentId)
+    .maybeSingle();
+  if (byAppointment.error && !isMissingVesselAppointmentColumn(byAppointment.error.message)) {
+    throw new Error(byAppointment.error.message);
+  }
+  if (byAppointment.data) return byAppointment.data;
+
+  const shortId = extractShortId(shiftreporterLink);
+  if (!shortId) return null;
+
+  const byShortId = await admin
+    .from("vessels")
+    .select("id,short_id,name,port,terminal,operation_type,holds,cargo_grades,commenced_at")
+    .eq("short_id", shortId)
+    .maybeSingle();
+  if (byShortId.error) throw new Error(byShortId.error.message);
+  return byShortId.data;
+}
+
+async function prepareLinkedShiftReporterVesselSync(args: {
+  appointmentId: string;
+  currentAppointment: {
+    vessel_name?: string | null;
+    port?: string | null;
+    terminal?: string | null;
+    cargo_operation?: string | null;
+    cargo_grade?: string | null;
+    holds?: number | null;
+    shiftreporter_link?: string | null;
+  };
+  nextPayload: {
+    vessel_name: string;
+    port: string | null;
+    terminal: string | null;
+    cargo_operation: string | null;
+    cargo_grade: string | null;
+    holds: number | null;
+    shiftreporter_link: string | null;
+  };
+}) {
+  const admin = supabaseAdmin();
+  const linkedVessel = await findLinkedShiftReporterVessel(args.appointmentId, args.currentAppointment.shiftreporter_link);
+  if (!linkedVessel) return args.nextPayload.shiftreporter_link;
+
+  const nextLink = `/v/${linkedVessel.short_id}`;
+  const currentHolds = Number(args.currentAppointment.holds || 0);
+  const nextHolds = Number(args.nextPayload.holds || 0);
+  const currentGrades = splitCargoGrades(args.currentAppointment.cargo_grade).join("|");
+  const nextGrades = splitCargoGrades(args.nextPayload.cargo_grade).join("|");
+  const holdsChange = currentHolds !== nextHolds;
+  const gradeChange = currentGrades !== nextGrades;
+
+  const shiftCountRes = await admin
+    .from("shift_reports")
+    .select("id", { count: "exact", head: true })
+    .eq("vessel_id", linkedVessel.id);
+  if (shiftCountRes.error) throw new Error(shiftCountRes.error.message);
+  const shiftCount = Number(shiftCountRes.count || 0);
+
+  if (holdsChange && shiftCount > 0) {
+    throw new Error(
+      "Cannot change holds after ShiftReporter activity has started. Cargo grades can still be refined operationally from ShiftReporter, but holds remain structural.",
+    );
+  }
+
+  return {
+    linkedVesselId: String(linkedVessel.id),
+    nextLink,
+    holdsChange,
+    gradeChange,
+    hasShiftActivity: shiftCount > 0,
+  };
+}
+
+async function applyLinkedShiftReporterVesselSync(args: {
+  appointmentId: string;
+  linkedVesselId: string;
+  holdsChange: boolean;
+  gradeChange: boolean;
+  hasShiftActivity: boolean;
+  nextPayload: {
+    vessel_name: string;
+    port: string | null;
+    terminal: string | null;
+    cargo_operation: string | null;
+    cargo_grade: string | null;
+    holds: number | null;
+  };
+}) {
+  const admin = supabaseAdmin();
+  const nextHolds = Number(args.nextPayload.holds || 0);
+
+  const updateRes = await admin
+    .from("vessels")
+    .update({
+      appointment_id: args.appointmentId,
+      name: args.nextPayload.vessel_name,
+      port: args.nextPayload.port || "TBC",
+      terminal: args.nextPayload.terminal || "TBC",
+      operation_type: mapOperationType(args.nextPayload.cargo_operation),
+      ...(args.hasShiftActivity
+        ? {}
+        : {
+            holds: nextHolds > 0 ? nextHolds : 1,
+            cargo_grades: splitCargoGrades(args.nextPayload.cargo_grade),
+          }),
+    })
+    .eq("id", args.linkedVesselId);
+  if (updateRes.error && !isMissingVesselAppointmentColumn(updateRes.error.message)) {
+    throw new Error(updateRes.error.message);
+  }
+
+  if (args.hasShiftActivity || (!args.holdsChange && !args.gradeChange)) return;
+
+  const stowRes = await admin
+    .from("stow_plans")
+    .select("id,hold,grade,total_mt,condition,draft_fwd,draft_mean,draft_aft")
+    .eq("vessel_id", args.linkedVesselId)
+    .order("hold", { ascending: true });
+  if (stowRes.error) throw new Error(stowRes.error.message);
+
+  const activeRows = (stowRes.data ?? []).filter((row: any) => !DRAFT_META_GRADE.has(String(row?.grade || "")));
+  const preservedDraftSource = activeRows[0] || null;
+  const nextGradesList = splitCargoGrades(args.nextPayload.cargo_grade);
+  const desiredHolds = nextHolds > 0 ? nextHolds : 1;
+  const desiredGrades = nextGradesList.length ? nextGradesList : ["TOTAL"];
+
+  const existingByKey = new Map(
+    activeRows.map((row: any) => [`${Number(row.hold)}|${String(row.grade || "")}`, row]),
+  );
+
+  const deleteRes = await admin
+    .from("stow_plans")
+    .delete()
+    .eq("vessel_id", args.linkedVesselId)
+    .not("grade", "in", '("__META_DRAFT_FWD__","__META_DRAFT_MEAN__","__META_DRAFT_AFT__")');
+  if (deleteRes.error) throw new Error(deleteRes.error.message);
+
+  const rebuiltRows = Array.from({ length: desiredHolds }).flatMap((_, index) =>
+    desiredGrades.map((grade) => {
+      const existing = existingByKey.get(`${index + 1}|${grade}`);
+      return {
+        vessel_id: args.linkedVesselId,
+        hold: index + 1,
+        grade,
+        total_mt: Number(existing?.total_mt || 0),
+        condition: existing?.condition || null,
+        draft_fwd: preservedDraftSource?.draft_fwd ?? null,
+        draft_mean: preservedDraftSource?.draft_mean ?? null,
+        draft_aft: preservedDraftSource?.draft_aft ?? null,
+      };
+    }),
+  );
+
+  if (!rebuiltRows.length) return;
+
+  let insertStow = await admin.from("stow_plans").insert(rebuiltRows);
+  if (insertStow.error && String(insertStow.error.message || "").toLowerCase().includes("condition")) {
+    insertStow = await admin.from("stow_plans").insert(
+      rebuiltRows.map((row) => ({
+        vessel_id: row.vessel_id,
+        hold: row.hold,
+        grade: row.grade,
+        total_mt: row.total_mt,
+        draft_fwd: row.draft_fwd,
+        draft_mean: row.draft_mean,
+        draft_aft: row.draft_aft,
+      })),
+    );
+  }
+  if (insertStow.error) throw new Error(insertStow.error.message);
 }
 
 async function resolveOperatorInitials(supabase: Awaited<ReturnType<typeof supabaseServer>>, userId?: string | null) {
@@ -516,6 +724,20 @@ export async function PATCH(
     });
     const operatorInitials = await resolveOperatorInitials(supabase, user?.id);
 
+    const currentAppointmentRes = await supabase
+      .from("appointments")
+      .select("id,vessel_name,port,terminal,cargo_operation,cargo_grade,holds,shiftreporter_link")
+      .eq("id", id)
+      .maybeSingle();
+    if (currentAppointmentRes.error) {
+      return NextResponse.json({ error: currentAppointmentRes.error.message }, { status: 500 });
+    }
+    if (!currentAppointmentRes.data) {
+      return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+    }
+    const currentAppointment = currentAppointmentRes.data;
+    const preservedShiftLink = body.shiftreporter_link?.trim() || currentAppointment.shiftreporter_link || null;
+
     const payload = {
       vessel_name: body.vessel_name.trim(),
       role: body.role?.trim() || "AGENT",
@@ -525,11 +747,11 @@ export async function PATCH(
       cargo_operation: body.cargo_operation?.trim() || null,
       cargo_grade: body.cargo_grade?.trim() || null,
       cargo_qty: sanitizeInt(body.cargo_qty, 6),
-      holds: sanitizeInt(body.holds, 2),
+      holds: currentAppointment.holds ?? null,
       appointment_datetime: body.appointment_datetime || `${nominationReceivedOn}T00:00:00.000Z`,
       charterer_agent: body.charterer_agent?.trim() || null,
       thanks_to: body.thanks_to?.trim() || null,
-      shiftreporter_link: body.shiftreporter_link?.trim() || null,
+      shiftreporter_link: preservedShiftLink,
       other_agents: body.other_agents?.trim() || null,
       other_agents_role: body.other_agents_role?.trim() || null,
       sub_agent_id: body.sub_agent_id || null,

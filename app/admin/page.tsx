@@ -15,10 +15,19 @@ export default async function AdminPage() {
 
   if (profile?.role !== "admin") redirect("/");
 
-  const { data: vessels } = await supabase
-    .from("vessels")
-    .select("id,short_id,name,port,terminal,operation_type,commenced_at,created_at")
-    .order("created_at", { ascending: false });
+  const [{ data: vessels }, { data: shiftRows }] = await Promise.all([
+    supabase
+      .from("vessels")
+      .select("id,short_id,name,port,terminal,operation_type,commenced_at,created_at")
+      .order("created_at", { ascending: false }),
+    supabase.from("shift_reports").select("vessel_id"),
+  ]);
+
+  const shiftedVesselIds = new Set((shiftRows ?? []).map((row) => String(row.vessel_id || "")));
+  const vesselItems = (vessels ?? []).map((vessel: any) => ({
+    ...vessel,
+    has_shifts: shiftedVesselIds.has(String(vessel.id || "")),
+  }));
 
   return (
     <div className="space-y-4">
@@ -27,7 +36,7 @@ export default async function AdminPage() {
         <p className="text-sm text-zinc-600">Create vessels, assign access, maintain stow plans.</p>
       </div>
 
-      <VesselSetup existingVessels={vessels ?? []} />
+      <VesselSetup existingVessels={vesselItems} />
     </div>
   );
 }
