@@ -272,7 +272,8 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
         ${isRevised ? '.revised-banner { background: #ff9800; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }' : ''}
         .content { padding: 20px; }
         .info-box { background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table { width: 60%; max-width: 900px; margin: 15px 0; border-collapse: collapse; }
+        @media (max-width: 600px) { table { width: 100%; margin: 15px 0; } }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background: #f0f0f0; font-weight: bold; }
         .total-row { font-weight: bold; background: #e8f4f8; }
@@ -308,7 +309,7 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
         </div>
 
         <h2>${movementHeading}</h2>
-        <table>
+        <table style="width:60%; max-width:900px; margin:15px 0; border-collapse:collapse;">
           <thead>
             <tr>
               <th>Hold</th>
@@ -348,7 +349,7 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
 
         ${shiftEvents.length > 0 ? `
           <h2>Events / Interruptions (This Shift)</h2>
-          <table class="event-table">
+          <table class="event-table" style="width:60%; max-width:900px; margin:15px 0; border-collapse:collapse;">
             <thead>
               <tr>
                 <th class="event-date">Date</th>
@@ -370,9 +371,16 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
           </table>
         ` : ""}
 
+        ${notes ? `
+          <h2>Notes</h2>
+          <div class="info-box">
+            ${notes.replace(/\n/g, "<br/>")}
+          </div>
+        ` : ""}
+
         ${runningEvents.length > 0 ? `
           <h2>Running SOF</h2>
-          <table class="event-table">
+          <table class="event-table" style="width:60%; max-width:900px; margin:15px 0; border-collapse:collapse;">
             <thead>
               <tr>
                 <th class="event-date">Date</th>
@@ -392,13 +400,6 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
               `).join("")}
             </tbody>
           </table>
-        ` : ""}
-
-        ${notes ? `
-          <h2>Notes</h2>
-          <div class="info-box">
-            ${notes.replace(/\n/g, "<br/>")}
-          </div>
         ` : ""}
 
         <p style="margin-top: 30px; color: #666; font-size: 12px;">
@@ -450,6 +451,7 @@ export async function sendShiftReportEmail(data: ShiftReportEmailData) {
     return { success: false, error: error instanceof Error ? error.message : "Unknown email send error" };
   }
 }
+
 
 
 
