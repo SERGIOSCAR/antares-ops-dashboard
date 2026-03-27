@@ -50,6 +50,12 @@ function toDisplayDate(value: string) {
   return `${pad(parsed.getDate())}-${parsed.toLocaleString("en-GB", { month: "short" })} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
 }
 
+function toIso(value: string) {
+  if (!value) return "";
+  if (value.includes("T")) return value;
+  return normalizeDateInput(value);
+}
+
 function splitReason(reason: string) {
   const [eventType, ...rest] = String(reason || "").split(" - ");
   const addon = rest.join(" - ");
@@ -103,8 +109,8 @@ export default function RunningSofEditor({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: fromInputDateTime(row.from),
-          to: row.to ? fromInputDateTime(row.to) : "",
+          from: toIso(row.from),
+          to: row.to ? toIso(row.to) : "",
           reason: row.reason.trim(),
         }),
       });

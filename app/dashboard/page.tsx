@@ -1,4 +1,9 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 export default function DashboardPage() {
+  const router = useRouter();
   const apps = [
     { name: "Vessel Manager", href: "/vesselmanager" },
     {
@@ -12,6 +17,17 @@ export default function DashboardPage() {
     { name: "LineUp", href: "/lineup" },
     { name: "Hydro Outlook", href: "/hydro" },
     { name: "Crew Change", href: "/crew-change" },
+    {
+      name: "Oyarbide Draft Forecast",
+      href: "/dashboard/oyarbide",
+      description: "Forecast draft overlay with astronomical tide",
+      accent: "border-cyan-500/60 bg-cyan-900/40 hover:bg-cyan-800/40",
+    },
+    {
+      name: "Oyarbide Astro-Tide Input",
+      href: "/dashboard/oyarbide/tablas",
+      description: "Manual upload of astronomical tide tables",
+    },
   ];
 
   return (
@@ -23,22 +39,40 @@ export default function DashboardPage() {
 
       <section className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {apps.map((app) => (
-          <a
-            key={app.name}
-            href={app.href}
-            target={app.href.startsWith("http") ? "_blank" : undefined}
-            rel={app.href.startsWith("http") ? "noopener noreferrer" : undefined}
-            className={`block cursor-pointer rounded-xl border p-6 text-inherit no-underline transition ${
-              "accent" in app && app.accent
-                ? app.accent
-                : "border-slate-700 bg-slate-800 hover:bg-slate-700"
-            }`}
-          >
-            <strong className="font-semibold text-slate-100">{app.name}</strong>
-            {"description" in app && app.description ? (
-              <p className="mt-2 text-sm text-slate-200">{app.description}</p>
-            ) : null}
-          </a>
+          app.href.startsWith("http") ? (
+            <a
+              key={app.name}
+              href={app.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`block cursor-pointer rounded-xl border p-6 text-inherit no-underline transition ${
+                "accent" in app && app.accent
+                  ? app.accent
+                  : "border-slate-700 bg-slate-800 hover:bg-slate-700"
+              }`}
+            >
+              <strong className="font-semibold text-slate-100">{app.name}</strong>
+              {"description" in app && app.description ? (
+                <p className="mt-2 text-sm text-slate-200">{app.description}</p>
+              ) : null}
+            </a>
+          ) : (
+            <button
+              type="button"
+              key={app.name}
+              onClick={() => router.push(app.href)}
+              className={`block w-full cursor-pointer rounded-xl border p-6 text-left no-underline transition ${
+                "accent" in app && app.accent
+                  ? app.accent
+                  : "border-slate-700 bg-slate-800 hover:bg-slate-700"
+              }`}
+            >
+              <strong className="font-semibold text-slate-100">{app.name}</strong>
+              {"description" in app && app.description ? (
+                <p className="mt-2 text-sm text-slate-200">{app.description}</p>
+              ) : null}
+            </button>
+          )
         ))}
       </section>
     </main>
