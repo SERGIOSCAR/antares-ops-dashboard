@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     const client = new OpenAI({ apiKey });
     const body = await req.json();
     const completion = await client.chat.completions.create({
-      model: "gpt-5-3",
+      model: "gpt-4o-mini",
       temperature: 0.2,
       messages: [
         { role: "system", content: OYARBIDE_SYSTEM_PROMPT },
