@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto my-10 max-w-[960px] px-5 font-sans">
-      <h1 className="mb-2 text-slate-100">Antares Ops Dashboard</h1>
+      <h1 className="mb-2 text-emerald-200">Antares Ops Dashboard</h1>
       <p className="mb-5 mt-0 text-slate-300">
         Internal portal modules
       </p>
