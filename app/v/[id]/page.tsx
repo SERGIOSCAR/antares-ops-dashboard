@@ -237,7 +237,7 @@ export default async function VesselPage({
                 <p className="text-sm text-slate-400">No SOF events recorded yet.</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm border border-slate-700">
                     <thead className="sticky top-0 z-10 bg-slate-900 text-slate-300">
                       <tr>
                         <th className="px-3 py-2 text-left">Time</th>
@@ -245,7 +245,7 @@ export default async function VesselPage({
                         <th className="px-3 py-2 text-left">Event</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-slate-700">
                       {runningSofEvents.map((event, idx) => (
                         <tr key={`${event.id}-${idx}`} className="odd:bg-slate-800 even:bg-slate-900">
                           <td className="px-3 py-2">{formatDateTime(event.from)}</td>
